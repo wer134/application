@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
+    <title>OBS Mockup with Settings</title>
+    
+    <style>
+        /* --- 기본 설정 --- */
+        :root {
+            --bg-darkest: #252525;    /* 창 배경 */
+            --bg-dark: #2f3136;      /* 패널 배경 */
+            --bg-medium: #36393f;    /* 헤더/툴바 배경 */
+            --border-color: #40444b; /* 구분선 */
+            --text-primary: #f1f1f1;  /* 흰색 텍스트 */
+            --text-secondary: #8e9297;/* 회색 텍스트 */
+            --color-green: #00c000;
+            --color-blue: #4f545c;    /* 버튼 배경 */
+            --color-highlight: #5865f2; /* 하이라이트 색 */
+            --color-red: #d83c3e; /* 녹화 버튼 빨간색 */
+        }
+
+        body {
+            background-color: #1e2124; /* 페이지 배경 */
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+                Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            font-size: 14px;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* ... (이전과 동일한 모든 CSS 스타일이 여기에 들어갑니다) ... */
+
+        /* --- 1. 창 래퍼 --- */
+        .obs-window {
+            width: 1400px;
+            height: 800px;
+            background-color: var(--bg-darkest);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        /* --- 2. 상단 메뉴바 (드롭다운 추가) --- */
+        .app-menubar {
+            background-color: var(--bg-medium);
+            padding: 6px 12px;
+            font-size: 0.9em;
+            border-bottom: 1px solid var(--border-color);
+            user-select: none;
+        }
+        .menu-item {
+            position: relative;
+            display: inline-block;
+            margin-right: 15px;
+            cursor: default;
+        }
+        .dropdown-menu {
+            display: none; /* 평소엔 숨김 */
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 5px 0;
+            min-width: 180px;
+            z-index: 1001; /* 모달보다 위에 */
+            list-style: none;
+            margin: 2px 0 0 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .dropdown-menu li {
+            padding: 8px 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .dropdown-menu li:hover {
+            background-color: var(--color-highlight);
+        }
+        /* 메뉴 아이템에 호버 시 드롭다운 표시 */
+        .menu-item:hover .dropdown-menu {
+            display: block;
+        }
+
+
+        /* --- 3. 메인 콘텐츠 --- */
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            gap: 10px;
+            overflow: auto; /* 스크롤 방지 */
+        }
+
+        /* 3-1. 미리보기 */
+        .preview-area {
+            flex-grow: 1; /* 남는 공간 모두 차지 */
+            background-color: #000;
+            border: 1px solid #111;
+        }
+        /* 카메라 피드를 위한 비디오 태그 스타일 */
+        #main-video-feed {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            object-fit: contain; /* 비율 유지하며 채우기 */
+        }
+
+
+        /* 3-2. 하단 독 컨테이너 */
+        .docks-container {
+            display: flex;
+            gap: 10px;
+            height: 270px; /* 스크린샷 비율에 맞춘 고정 높이 */
+        }
+
+        /* --- 재사용 가능한 독 패널 스타일 --- */
+        .dock-panel {
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* 내용물 넘침 방지 */
+        }
+        .dock-header {
+            background-color: var(--bg-medium);
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .dock-header h3 {
+            margin: 0;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        .dock-content {
+            flex-grow: 1;
+            padding: 10px;
+            overflow-y: auto; /* 내용 많아지면 스크롤 */
+        }
+        .dock-toolbar {
+            background-color: var(--bg-medium);
+            padding: 5px;
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            border-top: 1px solid var(--border-color);
+        }
+        .dock-toolbar button {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.1em;
+            cursor: pointer;
+            width: 25px;
+        }
+        .dock-toolbar button:hover {
+            background-color: var(--color-blue);
+        }
+
+        /* --- 개별 독 패널 크기 조정 (Flexbox) --- */
+        #scenes-panel { flex-basis: 15%; }
+        #sources-panel { flex-basis: 20%; }
+        #audio-mixer-panel { flex-basis: 30%; }
+        #transitions-panel { flex-basis: 15%; }
+        #controls-panel { flex-basis: 20%; }
+
+        /* --- 4. 하단 상태바 --- */
+        .status-bar {
+            background-color: var(--bg-medium);
+            padding: 6px 12px;
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+        }
+        .status-left span { margin-right: 20px; }
+        .status-left span#rec-status.recording {
+            color: var(--color-red);
+            font-weight: bold;
+        }
+
+
+        /* --- 패널 내부 상세 스타일 --- */
+
+        /* 장면(Scenes) */
+        .dock-content ul { list-style: none; padding: 0; margin: 0; }
+        .dock-content li {
+            padding: 5px 8px;
+            border-radius: 3px;
+        }
+        .dock-content li.active {
+            background-color: var(--color-highlight);
+        }
+
+        /* 소스(Sources) */
+        .center-text { text-align: center; color: var(--text-secondary); }
+        .source-icons { font-size: 1.5em; margin-top: 15px; }
+        .source-icons span { margin: 0 10px; }
+
+        /* 오디오 믹서(Audio Mixer) */
+        .audio-track { margin-bottom: 15px; }
+        .track-header {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 10px;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        .icon-button { cursor: pointer; color: var(--text-secondary); }
+        .icon-button:hover { color: var(--text-primary); }
+        
+        .volume-meter {
+            background-color: #1e2124;
+            height: 12px;
+            border-radius: 3px;
+            overflow: hidden;
+            border: 1px solid #111;
+        }
+        .meter-fill {
+            background-color: var(--color-green);
+            height: 100%;
+            width: 0%; /* JS로 제어하기 위해 0으로 시작 */
+            transition: width 0.05s linear; /* 부드럽게 움직이도록 */
+        }
+        .track-controls {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin: 0;
+        }
+
+        /* 장면 전환(Transitions) */
+        .dock-content select {
+            width: 100%;
+            background-color: var(--bg-medium);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .transition-details {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        /* 제어(Controls) */
+        .dock-content .control-btn {
+            display: block;
+            width: 100%;
+            background-color: var(--color-blue);
+            border: 1px solid #555;
+            color: var(--text-primary);
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        .dock-content .control-btn:hover {
+            background-color: #5a5e66;
+        }
+        /* 녹화 중일 때 버튼 스타일 */
+        .dock-content .control-btn.recording {
+            background-color: var(--color-red);
+            border-color: #ff7070;
+        }
+        .dock-content .control-btn.recording:hover {
+            background-color: #e24d4f;
+        }
+
+
+        /* --- 5. 설정 모달 스타일 --- */
+        .modal-overlay {
+            position: fixed; /* 화면 전체 덮기 */
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none; /* 평소엔 숨김 */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        /* JavaScript로 이 클래스를 추가/제거하여 모달을 켜고 끕니다 */
+        .modal-overlay.visible {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--bg-dark);
+            padding: 20px;
+            border-radius: 8px;
+            width: 600px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        }
+        .modal-content h2 { margin-top: 0; }
+        .modal-content fieldset {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .modal-content legend {
+            padding: 0 5px;
+            color: var(--text-secondary);
+        }
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .setting-item label {
+            flex-basis: 120px;
+        }
+        .setting-item select,
+        .setting-item .control-btn,
+        .setting-item input[type="number"] { /* input[type="number"] 추가 */
+            flex-grow: 1;
+            background-color: var(--bg-medium);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .setting-item .control-btn {
+            background-color: var(--color-blue);
+            cursor: pointer;
+        }
+        /* (CSS 숫자 입력 필드의 스피너 버튼 스타일링 - Webkit/Firefox) */
+        .setting-item input[type=number]::-webkit-inner-spin-button, 
+        .setting-item input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        .setting-item input[type=number] {
+            -moz-appearance: textfield;
+            appearance: none;
+        }
+
+        .modal-buttons { 
+            text-align: right; 
+            margin-top: 20px;
+        }
+        .modal-buttons .control-btn {
+            background-color: var(--color-blue);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="obs-window">
+        
+        <header class="app-menubar">
+            <div class="menu-item">
+                <span>File</span>
+                <ul class="dropdown-menu">
+                    <li>Show Recordings</li>
+                    <li>Remux Recordings</li>
+                    <li>Settings</li>
+                    <li id="menu-exit">Exit</li>
+                </ul>
+            </div>
+            <div class="menu-item">
+                <span>Edit</span>
+                <ul class="dropdown-menu">
+                    <li id="menu-copy">Copy</li>
+                    <li id="menu-paste">Paste</li>
+                    <li>Transform</li>
+                </ul>
+            </div>
+            <div class="menu-item">
+                <span>View</span>
+                <ul class="dropdown-menu">
+                    <li id="menu-toggle-fullscreen">Toggle Fullscreen</li>
+                    <li>Docks</li>
+                    <hr> <li id="menu-reload"> Force Reload</li>
+                    <li id="menu-toggle-devtool">Toggle Developer Tools</li>
+                </ul>
+            </div>
+            <div class="menu-item">
+                <span>Profile</span>
+                <ul class="dropdown-menu">
+                    <li>New</li>
+                    <li>Import</li>
+                </ul>
+            </div>
+            <div class="menu-item">
+                <span>Scene Collection</span>
+                <ul class="dropdown-menu">
+                    <li>New</li>
+                    <li>Import</li>
+                </ul>
+            </div>
+            <div class="menu-item">
+                <span>Tools</span>
+                <ul class="dropdown-menu">
+                    <li>Auto-Configuration Wizard</li>
+                    <li>Scripts</li>
+                </ul>
+            </div>
+            <div class="menu-item">
+                <span>Help</span>
+                <ul class="dropdown-menu">
+                    <li>Check for Updates</li>
+                    <li>About</li>
+                </ul>
+            </div>
+        </header>
+
+        <main class="main-content">
+
+            <section class="preview-area">
+                <video id="main-video-feed" autoplay muted playsinline></video>
+            </section>
+
+            <section class="docks-container">
+                
+                <div class="dock-panel" id="scenes-panel">
+                    <div class="dock-header"><h3>Scenes</h3></div>
+                    <div class="dock-content">
+                        <ul>
+                            <li class="active">Scene</li>
+                        </ul>
+                    </div>
+                    <div class="dock-toolbar">
+                        <button>+</button>
+                        <button>-</button>
+                        <button>⮝</button>
+                        <button>⮟</button>
+                    </div>
+                </div>
+                
+                <div class="dock-panel" id="sources-panel">
+                    <div class="dock-header"><h3>Sources</h3></div>
+                    <div class="dock-content center-text" id="sources-content">
+                        <p>You don't have any sources.<br>Click the + button below,<br>or right click here to add one.</p>
+                        <div class="source-icons">
+                            <span>📁</span>
+                            <span>💻</span>
+                            <span>🎤</span>
+                        </div>
+                    </div>
+                    <div class="dock-toolbar">
+                        <button>+</button>
+                        <button>-</button>
+                        <button>⚙</button>
+                        <button>⮝</button>
+                        <button>⮟</button>
+                    </div>
+                </div>
+
+                <div class="dock-panel" id="audio-mixer-panel">
+                    <div class="dock-header"><h3>Audio Mixer</h3></div>
+                    <div class="dock-content">
+                        <div class="audio-track">
+                            <div class="track-header">
+                                <span>Desktop Audio</span>
+                                <span>0.0 dB</span>
+                                <span class="icon-button">⚙</span>
+                            </div>
+                            <div class="volume-meter">
+                                <div class="meter-fill" data-meter-name="desktop"></div>
+                            </div>
+                            <div class="track-controls">
+                                <span class="icon-button">🔇</span>
+                                <input type="range" min="-100" max="0" value="0">
+                            </div>
+                        </div>
+                        <div class="audio-track">
+                            <div class="track-header">
+                                <span>Mic/Aux</span>
+                                <span>0.0 dB</span>
+                                <span class="icon-button">⚙</span>
+                            </div>
+                            <div class="volume-meter">
+                                <div class="meter-fill" data-meter-name="mic"></div>
+                            </div>
+                            <div class="track-controls">
+                                <span class="icon-button">🔇</span>
+                                <input type="range" min="-100" max="0" value="0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dock-panel" id="transitions-panel">
+                    <div class="dock-header"><h3>Scene Transitions</h3></div>
+                    <div class="dock-content">
+                        <select>
+                            <option>Fade</option>
+                        </select>
+                        <div class="transition-details">
+                            <span>Duration</span>
+                            <span id="duration-text">300 ms</span>
+                            <span class="icon-button" id="open-transitions-settings">⚙</span>
+                        </div>
+                    </div>
+                    <div class="dock-toolbar">
+                        <button>+</button>
+                        <button>...</button>
+                    </div>
+                </div>
+
+                <div class="dock-panel" id="controls-panel">
+                    <div class="dock-header"><h3>Controls</h3></div>
+                    <div class="dock-content">
+                        <button class="control-btn">Start Streaming</button>
+                        <button class="control-btn" id="start-recording-btn">Start Recording</button>
+                        <button class="control-btn">Studio Mode</button>
+                        <button class="control-btn" id="open-settings">Settings</button>
+                        <button class="control-btn" id="exit-button">Exit</button>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+
+        <footer class="status-bar">
+            <div class="status-left">
+                <span>LIVE: 00:00:00</span>
+                <span id="rec-status">REC: 00:00:00</span>
+            </div>
+            <div class="status-right">
+                <span>CPU: 3.8%, 60.00 fps</span>
+            </div>
+        </footer>
+    </div>
+
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-content">
+            <h2>설정 (Settings)</h2>
+            
+            <fieldset>
+                <legend>비디오 설정</legend>
+                <div class="setting-item">
+                    <label for="video-source">카메라:</label>
+                    <select id="video-source">
+                        </select>
+                </div>
+                <div class="setting-item">
+                    <label for="video-resolution">해상도:</label>
+                    <select id="video-resolution">
+                        <option value="auto">자동</option>
+                        <option value="1080p">1920x1080</option>
+                        <option value="720p">1280x720</option>
+                    </select>
+                </div>
+            </fieldset>
+            
+            <fieldset>
+                <legend>오디오 설정</legend>
+                <div class="setting-item">
+                    <label for="audio-source">마이크:</label>
+                    <select id="audio-source">
+                        </select>
+                </div>
+            </fieldset>
+            
+            <fieldset>
+                <legend>출력 (저장)</legend>
+                <div class="setting-item">
+                    <label for="file-format">파일 형식:</label>
+                    <select id="file-format">
+                        <option value="webm">WebM (권장)</option>
+                        <option value="mp4">MP4 (변환 필요)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>저장 위치:</label>
+                    <button class="control-btn" id="set-save-path">저장 폴더 선택...</button>
+                </div>
+            </fieldset>
+
+            <div class="modal-buttons">
+                <button class="control-btn" id="close-settings">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="transitions-settings-modal">
+        <div class="modal-content">
+            <h2>전환 설정 (Fade)</h2>
+            
+            <fieldset>
+                <legend>지속 시간</legend>
+                <div class="setting-item">
+                    <label for="fade-duration">시간 (ms):</label>
+                    <input type="number" id="fade-duration" value="300" min="0">
+                </div>
+            </fieldset>
+
+            <div class="modal-buttons">
+                <button class="control-btn" id="apply-transition-settings">적용</button>
+                <button class="control-btn" id="close-transitions-settings">닫기</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+
+            // --- 0. 전역 변수 및 DOM 요소 캐시 ---
+            const videoFeed = document.getElementById('main-video-feed');
+            const videoSelect = document.getElementById('video-source');
+            const audioSelect = document.getElementById('audio-source');
+            const sourcesContent = document.getElementById('sources-content');
+            const startRecordingBtn = document.getElementById('start-recording-btn');
+            const recStatus = document.getElementById('rec-status');
+
+            let mediaStream = null; // 웹캠/마이크 스트림 저장
+            let mediaRecorder = null; // 녹화 객체
+            let isRecording = false;  // 녹화 상태 플래그
+            let recTimer = null;      // 녹화 시간 타이머
+            let recStartTime = 0;
+
+            // Electron API가 있는지 확인 (preload.js를 통해 주입됨)
+            // 'typeof' 검사를 추가하여 'window.electronAPI'가 없는 일반 브라우저에서도 오류가 나지 않게 함
+            const isElectron = typeof window.electronAPI !== 'undefined' && typeof window.electronAPI.send === 'function';
+
+
+            // --- 1. 미디어 장치 접근 및 설정 ---
+            async function setupMediaDevices() {
+                try {
+                    // 1. 웹캠/마이크 권한 요청
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: true, 
+                        audio: true 
+                    });
+                    
+                    // 2. 메인 비디오 피드에 웹캠 연결
+                    videoFeed.srcObject = mediaStream;
+                    
+                    // 3. 사용 가능한 장치 목록을 <select>에 채우기
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    devices.forEach(device => {
+                        const option = document.createElement('option');
+                        option.value = device.deviceId;
+                        option.text = device.label || `${device.kind} ${videoSelect.options.length + 1}`;
+                        
+                        if (device.kind === 'videoinput') {
+                            videoSelect.appendChild(option);
+                        } else if (device.kind === 'audioinput') {
+                            audioSelect.appendChild(option);
+                        }
+                    });
+
+                    // 4. 동적 오디오 미터 설정
+                    setupAudioProcessing(mediaStream);
+
+                    // 5. 녹화 버튼 활성화 및 MediaRecorder 설정
+                    startRecordingBtn.disabled = false;
+                    setupMediaRecorder(); 
+
+                } catch (err) {
+                    console.error("미디어 장치에 접근할 수 없습니다:", err);
+                    videoFeed.style.backgroundColor = '#330000';
+                    sourcesContent.innerHTML = `<p style="color: #f44;">오류: 카메라/마이크 접근을<br>허용해야 합니다.</p>`;
+                    startRecordingBtn.disabled = true; // 오류 시 녹화 버튼 비활성화
+                }
+            }
+
+            
+            // --- 2. 동적 오디오 믹서 구현 ---
+            function setupAudioProcessing(stream) {
+                const desktopMeter = document.querySelector('[data-meter-name="desktop"]');
+                const micMeter = document.querySelector('[data-meter-name="mic"]');
+
+                const audioContext = new AudioContext();
+                const source = audioContext.createMediaStreamSource(stream);
+                const analyser = audioContext.createAnalyser();
+
+                analyser.fftSize = 256;
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+
+                source.connect(analyser);
+
+                function updateMeter() {
+                    analyser.getByteTimeDomainData(dataArray); 
+
+                    let maxVal = 0;
+                    for(let i = 0; i < bufferLength; i++) {
+                        const v = Math.abs(dataArray[i] - 128); 
+                        if (v > maxVal) {
+                            maxVal = v;
+                        }
+                    }
+                    const volumePercent = (maxVal / 128) * 100;
+                    micMeter.style.width = volumePercent + '%';
+
+                    const fakeDesktopVolume = Math.min(100, volumePercent * 0.6 + Math.random() * 5);
+                    desktopMeter.style.width = fakeDesktopVolume + '%';
+
+                    requestAnimationFrame(updateMeter);
+                }
+                updateMeter();
+            }
+
+
+            // --- 3. 녹화 로직 (MediaRecorder) ---
+            function setupMediaRecorder() {
+                if (!mediaStream) return;
+
+                mediaRecorder = new MediaRecorder(mediaStream, {
+                    mimeType: 'video/webm; codecs=vp9,opus' // Electron/fs에서 잘 처리되는 webm 포맷
+                });
+
+                // 녹화 데이터가 일정량 쌓일 때마다 호출됨 (약 1초 간격)
+                mediaRecorder.ondataavailable = async (event) => {
+                    if (event.data.size > 0 && isElectron) {
+                        // Blob 데이터를 ArrayBuffer로 변환
+                        const buffer = await event.data.arrayBuffer();
+                        // ArrayBuffer를 Electron의 Main 프로세스로 전송 (파일 쓰기)
+                        // 'video-chunk' 채널로 Buffer 객체를 보냅니다.
+                        window.electronAPI.send('video-chunk', new Uint8Array(buffer));
+                    }
+                };
+
+                // 녹화가 실제로 시작되었을 때
+                mediaRecorder.onstart = () => {
+                    if (isElectron) {
+                        // Main 프로세스에 녹화 시작을 알림 (파일 생성)
+                        window.electronAPI.send('start-recording');
+                    }
+                    // UI 업데이트
+                    startRecordingBtn.textContent = 'Stop Recording';
+                    startRecordingBtn.classList.add('recording');
+                    isRecording = true;
+                    // REC 타이머 시작
+                    recStartTime = Date.now();
+                    recStatus.classList.add('recording');
+                    recTimer = setInterval(updateRecTimer, 1000);
+                };
+
+                // 녹화가 중지되었을 때
+                mediaRecorder.onstop = () => {
+                    if (isElectron) {
+                        // Main 프로세스에 녹화 종료를 알림 (파일 닫기)
+                        window.electronAPI.send('stop-recording');
+                    }
+                    // UI 업데이트
+                    startRecordingBtn.textContent = 'Start Recording';
+                    startRecordingBtn.classList.remove('recording');
+                    isRecording = false;
+                    // REC 타이머 중지
+                    clearInterval(recTimer);
+                    recStatus.classList.remove('recording');
+                    recStatus.textContent = 'REC: 00:00:00';
+                };
+            }
+
+            // 'Start/Stop Recording' 버튼 클릭 핸들러
+            startRecordingBtn.addEventListener('click', () => {
+                if (!mediaRecorder) {
+                    console.error("MediaRecorder가 초기화되지 않았습니다.");
+                    return;
+                }
+                if (isRecording) {
+                    mediaRecorder.stop();
+                } else {
+                    mediaRecorder.start(1000); // 1000ms 마다 ondataavailable 이벤트 발생
+                }
+            });
+
+            // 녹화 시간 표시 타이머 업데이트
+            function updateRecTimer() {
+                const seconds = Math.floor((Date.now() - recStartTime) / 1000);
+                const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+                const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+                const s = String(seconds % 60).padStart(2, '0');
+                recStatus.textContent = `REC: ${h}:${m}:${s}`;
+            }
+
+
+            // --- 4. 모달 및 기타 UI 로직 ---
+            const openSettingsBtn = document.getElementById('open-settings');
+            const closeSettingsBtn = document.getElementById('close-settings');
+            const settingsModal = document.getElementById('settings-modal');
+            openSettingsBtn.addEventListener('click', () => settingsModal.classList.add('visible'));
+            closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('visible'));
+
+            const openTransitionsBtn = document.getElementById('open-transitions-settings');
+            const closeTransitionsBtn = document.getElementById('close-transitions-settings');
+            const applyTransitionsBtn = document.getElementById('apply-transition-settings');
+            const transitionsModal = document.getElementById('transitions-settings-modal');
+            const durationInput = document.getElementById('fade-duration');
+            const durationText = document.getElementById('duration-text');
+            openTransitionsBtn.addEventListener('click', () => transitionsModal.classList.add('visible'));
+            closeTransitionsBtn.addEventListener('click', () => transitionsModal.classList.remove('visible'));
+            applyTransitionsBtn.addEventListener('click', () => {
+                durationText.textContent = `${durationInput.value} ms`;
+                transitionsModal.classList.remove('visible');
+            });
+
+            const exitButton = document.getElementById('exit-button');
+            const menuExitButton = document.getElementById('menu-exit');
+            const exitFunc = () => {
+                if (isElectron) {
+                    window.electronAPI.send('exit-app');
+                } else {
+                    alert("프로그램을 종료합니다. (목업)");
+                }
+            };
+            exitButton.addEventListener('click', exitFunc);
+            menuExitButton.addEventListener('click', exitFunc);
+
+            document.getElementById('menu-copy')?.addEventListener('click', () => {
+                if (isElectron) window.electronAPI.send('menu-copy');
+            });
+            document.getElementById('menu-paste')?.addEventListener('click', () => {
+                if (isElectron) window.electronAPI.send('menu-paste');
+            });
+            document.getElementById('menu-toggle-fullscreen')?.addEventListener('click', () => {
+                if (isElectron) window.electronAPI.send('menu-toggle-fullscreen');
+            });
+            document.getElementById('menu-reload')?.addEventListener('click', () => {
+                if (isElectron) window.electronAPI.send('menu-reload');
+            });
+            document.getElementById('menu-toggle-devtools')?.addEventListener('click', () => {
+                if (isElectron) window.electronAPI.send('menu-toggle-devtools');
+            });
+
+            // --- 5. 초기화 실행 ---
+            setupMediaDevices();
+        });
+    </script>
+
+</body>
+</html>
