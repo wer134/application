@@ -40,7 +40,7 @@ app.on('window-all-closed', () => {
 });
 
 
-// --- 💡 녹화를 위한 IPC 핸들러 ---
+// --- 녹화를 위한 IPC 핸들러 ---
 
 // 1. 'start-recording' 메시지를 받으면
 ipcMain.on('start-recording', () => {
