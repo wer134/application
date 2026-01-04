@@ -1,5 +1,6 @@
 {
-  "name": "electron_app2",
+  "name": "video-tracker",
+  "productName": "Video Tracker",
   "version": "1.0.0",
   "main": "main.js",
   "scripts": {
@@ -8,10 +9,19 @@
     "package": "electron-forge package",
     "make": "electron-forge make"
   },
-  "keywords": [],
-  "author": "wer134",
+  "keywords": [
+    "video",
+    "recording",
+    "obs",
+    "streaming",
+    "webcam",
+    "electron"
+  ],
+  "author": {
+    "name": "wer134"
+  },
   "license": "ISC",
-  "description": "video tracker",
+  "description": "OBS Studio 스타일의 비디오 녹화 애플리케이션",
   "dependencies": {
     "electron-squirrel-startup": "^1.0.1"
   },

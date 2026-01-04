@@ -1,16 +1,16 @@
-// preload.js
-
 const { contextBridge, ipcRenderer } = require('electron');
 
-// 'window.electronAPI'라는 객체를 렌더러(index.html)의 window 객체에 주입합니다.
+/**
+ * 렌더러 프로세스에 안전한 IPC API를 노출합니다.
+ * Context Isolation을 통해 보안을 유지하면서 메인 프로세스와 통신할 수 있게 합니다.
+ */
 contextBridge.exposeInMainWorld('electronAPI', {
   /**
-   * 렌더러에서 메인 프로세스로 메시지를 보냅니다.
-   * @param {string} channel - IPC 채널 이름
+   * 메인 프로세스로 동기 메시지를 전송합니다.
+   * @param {string} channel - 허용된 IPC 채널 이름
    * @param {*} data - 전송할 데이터 (Buffer, string, object 등)
    */
   send: (channel, data) => {
-    // 보안: 허용된 채널 목록을 여기에 정의할 수 있습니다.
     const validChannels = [
       'start-recording', 
       'stop-recording', 
@@ -20,10 +20,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'menu-paste',
       'menu-toggle-fullscreen',
       'menu-reload',
-      'menu-toggle-devtools'
+      'menu-toggle-devtools',
+      'download-update'
     ];
     if (validChannels.includes(channel)) {
       ipcRenderer.send(channel, data);
     }
+  },
+  /**
+   * 메인 프로세스로 비동기 요청을 보내고 응답을 받습니다.
+   * @param {string} channel - 허용된 IPC 채널 이름
+   * @returns {Promise} 메인 프로세스의 응답
+   */
+  invoke: (channel) => {
+    const validChannels = ['select-save-path', 'get-save-path', 'show-recordings', 'check-for-updates'];
+    if (validChannels.includes(channel)) {
+      return ipcRenderer.invoke(channel);
+    }
+    return Promise.reject(new Error('Invalid channel'));
   },
 });
