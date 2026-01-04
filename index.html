@@ -72,6 +72,8 @@
                 </div>
                 <!-- 일반 모드 -->
                 <video id="main-video-feed" autoplay muted playsinline></video>
+                <!-- 리사이즈 핸들 -->
+                <div class="resize-handle" id="preview-resize-handle"></div>
             </section>
 
             <section class="docks-container">
@@ -400,7 +402,7 @@
                     // 장치 목록 추가
                     let videoCount = 0;
                     let audioCount = 0;
-                    
+
                     devices.forEach(device => {
                         const option = document.createElement('option');
                         option.value = device.deviceId;
@@ -542,7 +544,7 @@
                     btn.textContent = `배경 제거: ${backgroundRemovalEnabled ? 'ON' : 'OFF'}`;
                     if (backgroundRemovalEnabled) {
                         btn.classList.add('recording');
-                    } else {
+                } else {
                         btn.classList.remove('recording');
                     }
                 }
@@ -624,35 +626,41 @@
                     if (!audioContext) return;
 
                     // Mic 미터 업데이트
-                    if (analysers.mic && !audioMuted.mic) {
-                        analysers.mic.getByteTimeDomainData(micDataArray);
-                        let micMaxVal = 0;
-                        for (let i = 0; i < micBufferLength; i++) {
-                            const v = Math.abs(micDataArray[i] - 128);
-                            if (v > micMaxVal) {
-                                micMaxVal = v;
+                    const micMeter = document.querySelector('[data-meter-name="mic"]');
+                    if (analysers.mic && micMeter) {
+                        if (!audioMuted.mic) {
+                            analysers.mic.getByteTimeDomainData(micDataArray);
+                            let micMaxVal = 0;
+                            for (let i = 0; i < micBufferLength; i++) {
+                                const v = Math.abs(micDataArray[i] - 128);
+                                if (v > micMaxVal) {
+                                    micMaxVal = v;
+                                }
                             }
+                            const micVolumePercent = Math.min((micMaxVal / 128) * 100, 100);
+                            micMeter.style.width = micVolumePercent + '%';
+                        } else {
+                            micMeter.style.width = '0%';
                         }
-                        const micVolumePercent = (micMaxVal / 128) * 100;
-                        if (micMeter) micMeter.style.width = micVolumePercent + '%';
-                    } else {
-                        if (micMeter) micMeter.style.width = '0%';
                     }
 
                     // Desktop 미터 업데이트
-                    if (analysers.desktop && !audioMuted.desktop) {
-                        analysers.desktop.getByteTimeDomainData(desktopDataArray);
-                        let desktopMaxVal = 0;
-                        for (let i = 0; i < desktopBufferLength; i++) {
-                            const v = Math.abs(desktopDataArray[i] - 128);
-                            if (v > desktopMaxVal) {
-                                desktopMaxVal = v;
+                    const desktopMeter = document.querySelector('[data-meter-name="desktop"]');
+                    if (analysers.desktop && desktopMeter) {
+                        if (!audioMuted.desktop) {
+                            analysers.desktop.getByteTimeDomainData(desktopDataArray);
+                            let desktopMaxVal = 0;
+                            for (let i = 0; i < desktopBufferLength; i++) {
+                                const v = Math.abs(desktopDataArray[i] - 128);
+                                if (v > desktopMaxVal) {
+                                    desktopMaxVal = v;
+                                }
                             }
+                            const desktopVolumePercent = Math.min((desktopMaxVal / 128) * 100, 100);
+                            desktopMeter.style.width = desktopVolumePercent + '%';
+                        } else {
+                            desktopMeter.style.width = '0%';
                         }
-                        const desktopVolumePercent = (desktopMaxVal / 128) * 100;
-                        if (desktopMeter) desktopMeter.style.width = desktopVolumePercent + '%';
-                    } else {
-                        if (desktopMeter) desktopMeter.style.width = '0%';
                     }
 
                     requestAnimationFrame(updateMeter);
@@ -741,7 +749,7 @@
                         e.stopPropagation();
                         const trackType = muteBtn.dataset.mute;
                         if (trackType) {
-                            toggleMute(trackType);
+                        toggleMute(trackType);
                         }
                     }
                 });
@@ -952,7 +960,7 @@
                     alert('Electron 환경에서만 사용 가능합니다.');
                 }
             });
-            
+
             // 다른 설정 필드 변경 시 자동 저장
             const piIpInput = document.getElementById('raspberry-pi-ip');
             const piPortInput = document.getElementById('raspberry-pi-port');
@@ -1076,7 +1084,7 @@
                 if (modal) modal.classList.remove('visible');
                 if (sceneNameInput) sceneNameInput.value = '';
             }
-            
+
             /**
              * 새 장면을 추가합니다.
              */
@@ -1090,10 +1098,10 @@
                     return;
                 }
                 
-                const newId = Math.max(...scenes.map(s => s.id), -1) + 1;
+                    const newId = Math.max(...scenes.map(s => s.id), -1) + 1;
                 scenes.push({ id: newId, name: sceneName });
-                renderScenes();
-                switchScene(newId);
+                    renderScenes();
+                    switchScene(newId);
                 closeAddSceneModal();
             }
 
@@ -1439,10 +1447,10 @@
                     } else if (btnId === 'remove-source-btn') {
                         removeSource();
                     } else if (btnId === 'source-settings-btn') {
-                        if (selectedSourceId === null) {
-                            alert('설정할 소스를 선택하세요.');
-                        } else {
-                            alert('소스 설정 기능은 추후 구현 예정입니다.');
+                    if (selectedSourceId === null) {
+                        alert('설정할 소스를 선택하세요.');
+                    } else {
+                        alert('소스 설정 기능은 추후 구현 예정입니다.');
                         }
                     } else if (btnId === 'move-source-up-btn') {
                         moveSourceUp();
@@ -1924,10 +1932,58 @@
                     
                     // 스트림 시작 후 오디오 믹서 컨트롤 다시 설정
                     setupAudioMixerControls();
+                    
+                    // 프리뷰 영역 리사이즈 기능 설정
+                    setupPreviewResize();
                 } catch (error) {
                     console.error('초기화 중 오류 발생:', error);
                 }
             })();
+
+            /**
+             * 프리뷰 영역 리사이즈 기능을 설정합니다.
+             */
+            function setupPreviewResize() {
+                const previewArea = document.getElementById('preview-area');
+                const resizeHandle = document.getElementById('preview-resize-handle');
+                
+                if (!previewArea || !resizeHandle) return;
+                
+                let isResizing = false;
+                let startY = 0;
+                let startHeight = 0;
+                
+                resizeHandle.addEventListener('mousedown', (e) => {
+                    isResizing = true;
+                    startY = e.clientY;
+                    startHeight = previewArea.offsetHeight;
+                    e.preventDefault();
+                    document.body.style.cursor = 'nwse-resize';
+                    document.body.style.userSelect = 'none';
+                });
+                
+                document.addEventListener('mousemove', (e) => {
+                    if (!isResizing) return;
+                    
+                    const deltaY = e.clientY - startY;
+                    const newHeight = startHeight + deltaY;
+                    const minHeight = 200;
+                    const maxHeight = window.innerHeight - 300; // 하단 패널 공간 확보
+                    
+                    if (newHeight >= minHeight && newHeight <= maxHeight) {
+                        previewArea.style.height = newHeight + 'px';
+                        previewArea.style.flexGrow = '0';
+                    }
+                });
+                
+                document.addEventListener('mouseup', () => {
+                    if (isResizing) {
+                        isResizing = false;
+                        document.body.style.cursor = '';
+                        document.body.style.userSelect = '';
+                    }
+                });
+            }
         });
     </script>
 
