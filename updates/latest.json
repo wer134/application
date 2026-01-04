@@ -1,7 +1,7 @@
 {
-  "version": "1.0.2",
+  "version": "2.0.1",
   "releaseDate": "2024-12-19",
-  "downloadUrl": "https://github.com/wer134/application/releases/download/v1.0.2/Video.Tracker-1.0.2.Setup.exe",
-  "releaseNotes": "Spotlight Cam v1.0.2\n\n주요 개선사항:\n- CSS를 별도 파일(styles.css)로 분리하여 유지보수성 향상\n- Audio Mixer: Desktop Audio와 Mic/Aux 독립 처리 (음소거 버그 수정)\n- Scene 추가 모달 창 구현 (prompt 대신 모달 사용)\n- Settings 자동 저장/불러오기 기능 추가 (localStorage)\n- 드롭다운 메뉴 호버 문제 수정\n- 닫기 버튼 색상 개선 (가시성 향상)\n- 카메라/마이크 인식 개선\n- 다양한 UI/UX 개선"
+  "downloadUrl": "https://github.com/wer134/application/releases/download/v2.0.1/Video.Tracker-2.0.1.Setup.exe",
+  "releaseNotes": "Spotlight Cam v2.0.1\n\n주요 변경사항:\n- UI 간소화: 불필요한 OBS 스타일 기능 제거\n  * Scene Collection 메뉴 제거\n  * Profile 메뉴 제거\n  * Transform 기능 제거\n  * Remux Recordings 제거\n  * Studio Mode 제거\n  * Scene Transitions 간소화\n\n- 새로운 기능:\n  * 처리 전/후 비교 UI 추가\n  * 배경 제거 토글 버튼 추가\n  * 전/후 비교 보기 모드 추가\n\n- 개선사항:\n  * CSS를 별도 파일로 분리\n  * Audio Mixer 독립 처리\n  * Settings 자동 저장/불러오기\n  * 카메라/마이크 인식 개선"
 }
 
