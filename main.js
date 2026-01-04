@@ -1,31 +1,37 @@
-// main.js
-
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
+const http = require('http');
 
-// 파일 저장을 위한 쓰기 스트림 변수
 let writableStream = null;
+let savePath = 'C:\\VideoRecoding';
 
-function createWindow () {
+// 업데이트 서버 URL (GitHub Releases 또는 자체 서버)
+const UPDATE_SERVER_URL = 'https://raw.githubusercontent.com/wer134/application/main/updates/latest.json';
+// 또는 자체 서버: 'https://your-server.com/updates/latest.json'
+
+/**
+ * 메인 브라우저 창을 생성합니다.
+ */
+function createWindow() {
   const mainWindow = new BrowserWindow({
-    width: 1440, // 창 크기를 obs-window 크기보다 약간 크게 설정
-    height: 900,
+    width: 1280,
+    height: 720,
+    minWidth: 800,
+    minHeight: 600,
+    resizable: true,
     webPreferences: {
-      // preload.js 스크립트를 로드합니다.
-      // 렌더러(index.html)가 'window.electronAPI'에 접근할 수 있게 됩니다.
       preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true, // 보안을 위해 필수 (기본값)
-      nodeIntegration: false  // 보안을 위해 필수 (기본값)
+      contextIsolation: true,
+      nodeIntegration: false
     }
   });
+  
   mainWindow.setMenu(null);
-  // index.html 파일을 로드합니다.
   mainWindow.loadFile('index.html');
-
 }
 
-// Electron 앱이 준비되면 창을 생성합니다.
 app.whenReady().then(() => {
   createWindow();
 
@@ -34,88 +40,288 @@ app.whenReady().then(() => {
   });
 });
 
-// 모든 창이 닫히면 앱을 종료합니다 (macOS 제외)
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
-
-
-// --- 녹화를 위한 IPC 핸들러 ---
-
-// 1. 'start-recording' 메시지를 받으면
+/**
+ * 녹화 시작 IPC 핸들러
+ * 렌더러에서 녹화 시작 신호를 받으면 파일 스트림을 생성합니다.
+ */
 ipcMain.on('start-recording', () => {
   console.log('MAIN: 녹화 시작 신호 수신');
   
-  // 'Videos' 폴더에 저장 (Electron 기본 경로)
-  const savePath = 'C:\\VideoRecoding';
   const fileName = `obs-recording-${Date.now()}.webm`;
   const fullPath = path.join(savePath, fileName);
+
   try {
-    fs.mkdirSync(savePath, { recursive: true});
+    if (!fs.existsSync(savePath)) {
+      fs.mkdirSync(savePath, { recursive: true });
+    }
   } catch (err) {
     console.error('Main: 폴더 생성 실패', err);
-    return
+    return;
   }
 
   console.log(`MAIN: 파일 저장 위치: ${fullPath}`);
-
-  // 파일을 쓸 수 있는 스트림 생성
   writableStream = fs.createWriteStream(fullPath);
 });
 
-// 2. 'video-chunk' 메시지를 받으면 (가장 중요)
-// 렌더러에서 보낸 'Buffer' 데이터를 받습니다.
+/**
+ * 비디오 청크 수신 IPC 핸들러
+ * 렌더러에서 전송된 비디오 데이터 청크를 파일에 기록합니다.
+ * @param {Object} event - IPC 이벤트 객체
+ * @param {Uint8Array} chunk - 비디오 데이터 청크
+ */
 ipcMain.on('video-chunk', (event, chunk) => {
   if (writableStream) {
-    // 받아온 비디오 데이터 조각을 파일에 즉시 씁니다.
     writableStream.write(Buffer.from(chunk));
-  } else {
-    console.error('MAIN: 스트림이 준비되지 않았는데 비디오 청크 수신');
   }
 });
 
-// 3. 'stop-recording' 메시지를 받으면
+/**
+ * 녹화 중지 IPC 핸들러
+ * 녹화 종료 신호를 받으면 파일 스트림을 닫습니다.
+ */
 ipcMain.on('stop-recording', () => {
   console.log('MAIN: 녹화 중지 신호 수신');
   if (writableStream) {
-    // 파일 쓰기를 종료하고 스트림을 닫습니다.
     writableStream.end();
     writableStream = null;
     console.log('MAIN: 파일 저장 완료.');
   }
 });
 
-// 4. 'exit-app' 메시지를 받으면
+/**
+ * 앱 종료 IPC 핸들러
+ */
 ipcMain.on('exit-app', () => {
   app.quit();
 });
 
-// Edit > copy 신호를 받으면
+/**
+ * 메뉴 > Edit > Copy IPC 핸들러
+ */
 ipcMain.on('menu-copy', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   win?.webContents.copy();
-})
+});
 
-// Edit > Paste 신호를 받으면
+/**
+ * 메뉴 > Edit > Paste IPC 핸들러
+ */
 ipcMain.on('menu-paste', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   win?.webContents.paste();
-})
+});
 
-// View > Toggle Fullscreen 신호를 받으면
+/**
+ * 메뉴 > View > Toggle Fullscreen IPC 핸들러
+ */
 ipcMain.on('menu-toggle-fullscreen', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
-  win.setFullScreen(!win.isFullScreen);
-})
+  if (win) {
+    win.setFullScreen(!win.isFullScreen());
+  }
+});
 
-// View > Force Reload 신호를 받으면
+/**
+ * 메뉴 > View > Force Reload IPC 핸들러
+ */
 ipcMain.on('menu-reload', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
-  win.webContents.reload();
-})
+  win?.webContents.reload();
+});
 
-// View > Toggle Developer Tools 신호를 받으면
+/**
+ * 메뉴 > View > Toggle Developer Tools IPC 핸들러
+ */
 ipcMain.on('menu-toggle-devtools', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   win?.webContents.toggleDevTools();
-})
+});
+
+/**
+ * 저장 위치 선택 다이얼로그 IPC 핸들러
+ * 사용자가 폴더를 선택하면 저장 경로를 업데이트합니다.
+ * @param {Object} event - IPC 이벤트 객체
+ * @returns {Promise<string|null>} 선택된 경로 또는 null
+ */
+ipcMain.handle('select-save-path', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, {
+    properties: ['openDirectory'],
+    title: '녹화 파일 저장 위치 선택'
+  });
+  
+  if (!result.canceled && result.filePaths.length > 0) {
+    savePath = result.filePaths[0];
+    console.log(`MAIN: 저장 경로 변경: ${savePath}`);
+    return savePath;
+  }
+  return null;
+});
+
+/**
+ * 현재 저장 경로 조회 IPC 핸들러
+ * @returns {string} 현재 저장 경로
+ */
+ipcMain.handle('get-save-path', () => {
+  return savePath;
+});
+
+/**
+ * 녹화 파일 목록 조회 IPC 핸들러
+ * @returns {Promise<string[]>} 녹화 파일 목록
+ */
+ipcMain.handle('show-recordings', async () => {
+  try {
+    if (!fs.existsSync(savePath)) {
+      return [];
+    }
+    const files = fs.readdirSync(savePath);
+    return files.filter(file => file.endsWith('.webm')).sort().reverse();
+  } catch (err) {
+    console.error('녹화 파일 목록 조회 실패:', err);
+    return [];
+  }
+});
+
+// ============================================
+// 자동 업데이트 기능
+// ============================================
+
+/**
+ * 버전 문자열을 비교합니다.
+ * @param {string} version1 - 비교할 버전 1
+ * @param {string} version2 - 비교할 버전 2
+ * @returns {number} version1 > version2면 1, 같으면 0, 작으면 -1
+ */
+function compareVersions(version1, version2) {
+  const v1parts = version1.split('.').map(Number);
+  const v2parts = version2.split('.').map(Number);
+  const maxLength = Math.max(v1parts.length, v2parts.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    const v1part = v1parts[i] || 0;
+    const v2part = v2parts[i] || 0;
+    
+    if (v1part > v2part) return 1;
+    if (v1part < v2part) return -1;
+  }
+  return 0;
+}
+
+/**
+ * 업데이트 서버에서 최신 버전 정보를 가져옵니다.
+ * @returns {Promise<Object|null>} 업데이트 정보 또는 null
+ */
+async function checkForUpdates() {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(UPDATE_SERVER_URL);
+      const client = url.protocol === 'https:' ? https : http;
+
+      const options = {
+        hostname: url.hostname,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
+        path: url.pathname,
+        method: 'GET',
+        headers: {
+          'User-Agent': `SpotlightCam/${app.getVersion()}`
+        }
+      };
+
+      const req = client.request(options, (res) => {
+        let data = '';
+
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+
+        res.on('end', () => {
+          try {
+            const updateInfo = JSON.parse(data);
+            resolve(updateInfo);
+          } catch (error) {
+            console.error('업데이트 정보 파싱 실패:', error);
+            resolve(null);
+          }
+        });
+      });
+
+      req.on('error', (error) => {
+        console.error('업데이트 확인 요청 실패:', error);
+        resolve(null);
+      });
+
+      req.setTimeout(5000, () => {
+        req.destroy();
+        console.error('업데이트 확인 타임아웃');
+        resolve(null);
+      });
+
+      req.end();
+    } catch (error) {
+      console.error('업데이트 확인 오류:', error);
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * 업데이트가 필요한지 확인하고 결과를 반환합니다.
+ * @returns {Promise<Object|null>} 업데이트 정보 또는 null
+ */
+async function getUpdateInfo() {
+  try {
+    const updateInfo = await checkForUpdates();
+    if (!updateInfo) {
+      return null;
+    }
+
+    const currentVersion = app.getVersion();
+    const latestVersion = updateInfo.version;
+
+    if (compareVersions(latestVersion, currentVersion) > 0) {
+      return {
+        available: true,
+        currentVersion: currentVersion,
+        latestVersion: latestVersion,
+        downloadUrl: updateInfo.downloadUrl,
+        releaseNotes: updateInfo.releaseNotes || '업데이트가 사용 가능합니다.',
+        releaseDate: updateInfo.releaseDate
+      };
+    }
+
+    return {
+      available: false,
+      currentVersion: currentVersion,
+      latestVersion: latestVersion
+    };
+  } catch (error) {
+    console.error('업데이트 정보 가져오기 실패:', error);
+    return null;
+  }
+}
+
+/**
+ * 업데이트 확인 IPC 핸들러
+ * 렌더러에서 업데이트 확인을 요청하면 서버에서 최신 버전을 확인합니다.
+ * @param {Object} event - IPC 이벤트 객체
+ * @returns {Promise<Object|null>} 업데이트 정보
+ */
+ipcMain.handle('check-for-updates', async (event) => {
+  console.log('업데이트 확인 요청');
+  return await getUpdateInfo();
+});
+
+/**
+ * 업데이트 다운로드 IPC 핸들러
+ * 사용자가 업데이트를 다운로드하기로 결정하면 브라우저에서 다운로드 페이지를 엽니다.
+ * @param {Object} event - IPC 이벤트 객체
+ * @param {string} downloadUrl - 다운로드 URL
+ */
+ipcMain.on('download-update', (event, downloadUrl) => {
+  console.log('업데이트 다운로드:', downloadUrl);
+  shell.openExternal(downloadUrl);
+});

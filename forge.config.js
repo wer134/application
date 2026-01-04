@@ -4,12 +4,20 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
+    name: 'Video Tracker',
+    executableName: 'VideoTracker',
+    // icon: './assets/icon', // 아이콘 파일이 있으면 경로 지정
   },
   rebuildConfig: {},
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
-      config: {},
+      config: {
+        name: 'VideoTracker',
+        setupExe: 'VideoTracker-Setup.exe',
+        // setupIcon: './assets/icon.ico', // 아이콘 파일이 있으면 경로 지정
+        // loadingGif: './assets/loading.gif', // 선택사항
+      },
     },
     {
       name: '@electron-forge/maker-zip',
