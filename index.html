@@ -114,7 +114,7 @@
         .dropdown-menu {
             display: none; /* 평소엔 숨김 */
             position: absolute;
-            top: 100%;
+            top: calc(100% - 1px); /* 메뉴 아이템과 약간 겹치게 하여 간격 제거 */
             left: 0;
             background-color: var(--bg-dark);
             border: 1px solid var(--border-color);
@@ -123,7 +123,7 @@
             min-width: 180px;
             z-index: 1001; /* 모달보다 위에 */
             list-style: none;
-            margin: 2px 0 0 0;
+            margin: 0; /* 간격 제거 */
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         .dropdown-menu li {
@@ -137,6 +137,11 @@
         }
         /* 메뉴 아이템에 호버 시 드롭다운 표시 */
         .menu-item:hover .dropdown-menu {
+            display: block;
+        }
+        /* 드롭다운 메뉴 자체에 호버 시에도 표시 유지 */
+        .menu-item:hover .dropdown-menu,
+        .dropdown-menu:hover {
             display: block;
         }
 
@@ -206,6 +211,7 @@
             overflow: hidden;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
+        
         .dock-header {
             background-color: var(--bg-medium);
             padding: 8px 12px;
@@ -874,26 +880,69 @@
              * 사용 가능한 비디오/오디오 입력 장치 목록을 가져와 드롭다운에 추가합니다.
              */
             async function getDevices() {
+                let tempStream = null;
                 try {
-                    await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    // 권한 획득을 위해 임시 스트림 요청 (장치 라벨을 얻기 위해 필요)
+                    tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    
+                    // 장치 목록 가져오기
                     const devices = await navigator.mediaDevices.enumerateDevices();
                     
+                    // 드롭다운 초기화
                     videoSelect.innerHTML = '';
                     audioSelect.innerHTML = '';
 
+                    // 기본 옵션 추가
+                    const videoDefaultOption = document.createElement('option');
+                    videoDefaultOption.value = '';
+                    videoDefaultOption.text = '카메라 선택...';
+                    videoSelect.appendChild(videoDefaultOption);
+
+                    const audioDefaultOption = document.createElement('option');
+                    audioDefaultOption.value = '';
+                    audioDefaultOption.text = '마이크 선택...';
+                    audioSelect.appendChild(audioDefaultOption);
+
+                    // 장치 목록 추가
+                    let videoCount = 0;
+                    let audioCount = 0;
+                    
                     devices.forEach(device => {
                         const option = document.createElement('option');
                         option.value = device.deviceId;
-                        option.text = device.label || `${device.kind} ${videoSelect.options.length + 1}`;
                         
                         if (device.kind === 'videoinput') {
+                            videoCount++;
+                            option.text = device.label || `카메라 ${videoCount}`;
                             videoSelect.appendChild(option);
                         } else if (device.kind === 'audioinput') {
+                            audioCount++;
+                            option.text = device.label || `마이크 ${audioCount}`;
                             audioSelect.appendChild(option);
                         }
                     });
+
+                    // 임시 스트림 정리
+                    if (tempStream) {
+                        tempStream.getTracks().forEach(track => track.stop());
+                    }
+
+                    console.log(`장치 목록 로드 완료: 카메라 ${videoCount}개, 마이크 ${audioCount}개`);
+                    
+                    if (videoCount === 0 && audioCount === 0) {
+                        console.warn('인식된 카메라/마이크가 없습니다.');
+                    }
                 } catch (err) {
                     console.error("장치 목록을 가져오는 중 오류 발생:", err);
+                    
+                    // 임시 스트림 정리
+                    if (tempStream) {
+                        tempStream.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    // 에러 메시지 표시
+                    videoSelect.innerHTML = '<option value="">카메라를 찾을 수 없음</option>';
+                    audioSelect.innerHTML = '<option value="">마이크를 찾을 수 없음</option>';
                 }
             }
 
@@ -921,9 +970,10 @@
                     mediaStream.getTracks().forEach(track => track.stop());
                 }
 
+                // 빈 문자열이나 undefined일 때 기본 장치 사용
                 const constraints = {
-                    video: videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true,
-                    audio: audioDeviceId ? { deviceId: { exact: audioDeviceId } } : true
+                    video: (videoDeviceId && videoDeviceId.trim()) ? { deviceId: { exact: videoDeviceId } } : true,
+                    audio: (audioDeviceId && audioDeviceId.trim()) ? { deviceId: { exact: audioDeviceId } } : true
                 };
 
                 try {
@@ -1238,6 +1288,10 @@
             
             openSettingsBtn.addEventListener('click', async () => {
                 settingsModal.classList.add('visible');
+                
+                // 설정 모달이 열릴 때 장치 목록 새로고침
+                await getDevices();
+                
                 if (isElectron && window.electronAPI.invoke) {
                     try {
                         const currentPath = await window.electronAPI.invoke('get-save-path');
@@ -2099,6 +2153,43 @@
                     console.error('자동 업데이트 확인 실패:', error);
                 }
             }
+
+            // ============================================
+            // 초기화 실행
+            // ============================================
+            
+            /**
+             * 애플리케이션 초기화 함수
+             * 페이지 로드 시 한 번 실행됩니다.
+             */
+            (async function init() {
+                try {
+                    // 오디오 믹서 컨트롤 설정
+                    setupAudioMixerControls();
+                    
+                    // 장면 패널 설정
+                    setupScenesPanel();
+                    
+                    // 소스 패널 설정
+                    setupSourcesPanel();
+                    
+                    // 라즈베리파이 연결 UI 설정
+                    setupPiConnectionUI();
+                    
+                    // 업데이트 모달 설정
+                    setupUpdateModal();
+                    
+                    // 카메라/마이크 장치 목록 가져오기
+                    await getDevices();
+                    
+                    // 기본 장치로 스트림 시작
+                    await startStream();
+                    
+                    console.log('애플리케이션 초기화 완료');
+                } catch (error) {
+                    console.error('초기화 중 오류 발생:', error);
+                }
+            })();
         });
     </script>
 
