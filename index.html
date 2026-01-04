@@ -20,7 +20,6 @@
                 <span>File</span>
                 <ul class="dropdown-menu">
                     <li id="menu-show-recordings">Show Recordings</li>
-                    <li id="menu-remux-recordings">Remux Recordings</li>
                     <li id="menu-settings">Settings</li>
                     <li id="menu-exit">Exit</li>
                 </ul>
@@ -30,7 +29,6 @@
                 <ul class="dropdown-menu">
                     <li id="menu-copy">Copy</li>
                     <li id="menu-paste">Paste</li>
-                    <li id="menu-transform">Transform</li>
                 </ul>
             </div>
             <div class="menu-item">
@@ -40,20 +38,6 @@
                     <li>Docks</li>
                     <hr> <li id="menu-reload"> Force Reload</li>
                     <li id="menu-toggle-devtool">Toggle Developer Tools</li>
-                </ul>
-            </div>
-            <div class="menu-item">
-                <span>Profile</span>
-                <ul class="dropdown-menu">
-                    <li>New</li>
-                    <li>Import</li>
-                </ul>
-            </div>
-            <div class="menu-item">
-                <span>Scene Collection</span>
-                <ul class="dropdown-menu">
-                    <li>New</li>
-                    <li>Import</li>
                 </ul>
             </div>
             <div class="menu-item">
@@ -75,17 +59,19 @@
         <main class="main-content">
 
             <section class="preview-area" id="preview-area">
-                <div id="studio-mode-container" style="display: none; width: 100%; height: 100%; grid-template-columns: 1fr 1fr; gap: 5px;">
-                    <div style="border: 2px solid var(--border-color); position: relative;">
-                        <div style="position: absolute; top: 5px; left: 5px; background: var(--bg-dark); padding: 3px 8px; border-radius: 3px; font-size: 0.8em; z-index: 10;">프리뷰</div>
-                        <video id="preview-video" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: contain;"></video>
+                <!-- 처리 전/후 비교 모드 -->
+                <div id="comparison-container">
+                    <div class="comparison-video-wrapper">
+                        <div class="comparison-label original-label">원본</div>
+                        <video id="original-video" autoplay muted playsinline></video>
                     </div>
-                    <div style="border: 2px solid var(--color-highlight); position: relative;">
-                        <div style="position: absolute; top: 5px; left: 5px; background: var(--color-highlight); padding: 3px 8px; border-radius: 3px; font-size: 0.8em; z-index: 10;">프로그램</div>
-                        <video id="program-video" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: contain;"></video>
+                    <div class="comparison-video-wrapper processed">
+                        <div class="comparison-label processed-label">처리 후</div>
+                        <video id="processed-video" autoplay muted playsinline></video>
                     </div>
                 </div>
-                <video id="main-video-feed" autoplay muted playsinline style="width: 100%; height: 100%;"></video>
+                <!-- 일반 모드 -->
+                <video id="main-video-feed" autoplay muted playsinline></video>
             </section>
 
             <section class="docks-container">
@@ -161,30 +147,12 @@
                     </div>
                 </div>
 
-                <div class="dock-panel" id="transitions-panel">
-                    <div class="dock-header"><h3>Scene Transitions</h3></div>
-                    <div class="dock-content">
-                        <select>
-                            <option>Fade</option>
-                        </select>
-                        <div class="transition-details">
-                            <span>Duration</span>
-                            <span id="duration-text">300 ms</span>
-                            <span class="icon-button" id="open-transitions-settings">⚙</span>
-                        </div>
-                    </div>
-                    <div class="dock-toolbar">
-                        <button>+</button>
-                        <button>...</button>
-                    </div>
-                </div>
-
                 <div class="dock-panel" id="controls-panel">
                     <div class="dock-header"><h3>Controls</h3></div>
                     <div class="dock-content">
-                        <button class="control-btn">Start Streaming</button>
                         <button class="control-btn" id="start-recording-btn">Start Recording</button>
-                        <button class="control-btn" id="studio-mode-btn">Studio Mode</button>
+                        <button class="control-btn" id="toggle-background-removal">배경 제거: OFF</button>
+                        <button class="control-btn" id="toggle-comparison">전/후 비교 보기</button>
                         <button class="control-btn" id="open-settings">Settings</button>
                         <button class="control-btn" id="exit-button">Exit</button>
                     </div>
@@ -331,24 +299,6 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="transitions-settings-modal">
-        <div class="modal-content">
-            <h2>전환 설정 (Fade)</h2>
-            
-            <fieldset>
-                <legend>지속 시간</legend>
-                <div class="setting-item">
-                    <label for="fade-duration">시간 (ms):</label>
-                    <input type="number" id="fade-duration" value="300" min="0">
-                </div>
-            </fieldset>
-
-            <div class="modal-buttons">
-                <button class="control-btn" id="apply-transition-settings">적용</button>
-                <button class="control-btn" id="close-transitions-settings">닫기</button>
-            </div>
-        </div>
-    </div>
 
     <div class="modal-overlay" id="add-scene-modal">
         <div class="modal-content">
@@ -403,8 +353,8 @@
             let sources = [];                          // 소스 목록 배열
             let selectedSourceId = null;               // 현재 선택된 소스 ID
             let nextSourceId = 1;                      // 다음 소스 ID (자동 증가)
-            let studioMode = false;                    // Studio Mode 활성화 상태
-            let previewStream = null;                  // Studio Mode 프리뷰용 스트림
+            let backgroundRemovalEnabled = false;      // 배경 제거 활성화 상태
+            let comparisonMode = false;                 // 전/후 비교 모드 활성화 상태
             
             // ============================================
             // 라즈베리파이 WebSocket 연결 변수
@@ -523,11 +473,7 @@
                 try {
                     mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                     
-                    if (studioMode) {
-                        updateStudioModeStreams(mediaStream);
-                    } else {
-                        videoFeed.srcObject = mediaStream;
-                    }
+                    updateVideoDisplay(mediaStream);
                     
                     setupAudioProcessing(mediaStream);
                     setupMediaRecorder();
@@ -553,72 +499,81 @@
             }
 
             /**
-             * Studio Mode에서 프리뷰와 프로그램 스트림을 업데이트합니다.
+             * 비디오 표시를 업데이트합니다 (일반 모드 또는 비교 모드).
              * @param {MediaStream} stream - 업데이트할 미디어 스트림
              */
-            function updateStudioModeStreams(stream) {
-                const previewVideo = document.getElementById('preview-video');
-                const programVideo = document.getElementById('program-video');
+            function updateVideoDisplay(stream) {
+                const videoFeed = document.getElementById('main-video-feed');
+                const comparisonContainer = document.getElementById('comparison-container');
+                const originalVideo = document.getElementById('original-video');
+                const processedVideo = document.getElementById('processed-video');
                 
-                if (previewVideo && !previewStream) {
-                    previewVideo.srcObject = stream.clone();
-                    previewStream = stream.clone();
-                } else if (previewVideo && previewStream) {
-                    previewVideo.srcObject = stream.clone();
-                }
-                
-                if (programVideo) {
-                    programVideo.srcObject = stream;
-                }
-            }
-
-            /**
-             * Studio Mode를 토글합니다.
-             */
-            function toggleStudioMode() {
-                studioMode = !studioMode;
-                const studioModeBtn = document.getElementById('studio-mode-btn');
-                const studioModeContainer = document.getElementById('studio-mode-container');
-                const mainVideoFeed = document.getElementById('main-video-feed');
-                
-                if (studioMode) {
-                    studioModeBtn.textContent = 'Exit Studio Mode';
-                    studioModeBtn.classList.add('recording');
-                    if (studioModeContainer) studioModeContainer.style.display = 'grid';
-                    if (mainVideoFeed) mainVideoFeed.style.display = 'none';
+                if (comparisonMode && comparisonContainer) {
+                    // 비교 모드: 원본과 처리된 영상을 나란히 표시
+                    comparisonContainer.classList.add('active');
+                    if (videoFeed) videoFeed.style.display = 'none';
                     
-                    if (mediaStream) {
-                        updateStudioModeStreams(mediaStream);
+                    if (originalVideo) {
+                        originalVideo.srcObject = stream.clone();
+                    }
+                    if (processedVideo) {
+                        // TODO: 배경 제거 처리된 스트림을 processedVideo에 연결
+                        // 현재는 원본과 동일하게 표시 (AI 처리 로직 추가 필요)
+                        processedVideo.srcObject = stream;
                     }
                 } else {
-                    studioModeBtn.textContent = 'Studio Mode';
-                    studioModeBtn.classList.remove('recording');
-                    if (studioModeContainer) studioModeContainer.style.display = 'none';
-                    if (mainVideoFeed) {
-                        mainVideoFeed.style.display = 'block';
-                        mainVideoFeed.srcObject = mediaStream;
-                    }
-                    
-                    if (previewStream) {
-                        previewStream.getTracks().forEach(track => track.stop());
-                        previewStream = null;
+                    // 일반 모드: 단일 비디오 표시
+                    if (comparisonContainer) comparisonContainer.classList.remove('active');
+                    if (videoFeed) {
+                        videoFeed.style.display = 'block';
+                        videoFeed.srcObject = stream;
                     }
                 }
             }
 
             /**
-             * 프리뷰를 프로그램으로 전환합니다 (Studio Mode에서만 사용).
+             * 배경 제거 기능을 토글합니다.
              */
-            function transitionPreviewToProgram() {
-                if (!studioMode) return;
+            function toggleBackgroundRemoval() {
+                backgroundRemovalEnabled = !backgroundRemovalEnabled;
+                const btn = document.getElementById('toggle-background-removal');
                 
-                const previewVideo = document.getElementById('preview-video');
-                const programVideo = document.getElementById('program-video');
+                if (btn) {
+                    btn.textContent = `배경 제거: ${backgroundRemovalEnabled ? 'ON' : 'OFF'}`;
+                    if (backgroundRemovalEnabled) {
+                        btn.classList.add('recording');
+                    } else {
+                        btn.classList.remove('recording');
+                    }
+                }
                 
-                if (previewVideo && programVideo && previewStream) {
-                    const temp = programVideo.srcObject;
-                    programVideo.srcObject = previewVideo.srcObject;
-                    previewVideo.srcObject = temp;
+                // TODO: 실제 배경 제거 AI 처리 로직 추가 필요
+                console.log('배경 제거:', backgroundRemovalEnabled ? '활성화' : '비활성화');
+                
+                if (mediaStream) {
+                    updateVideoDisplay(mediaStream);
+                }
+            }
+
+            /**
+             * 전/후 비교 모드를 토글합니다.
+             */
+            function toggleComparison() {
+                comparisonMode = !comparisonMode;
+                const btn = document.getElementById('toggle-comparison');
+                
+                if (btn) {
+                    if (comparisonMode) {
+                        btn.textContent = '전/후 비교 숨기기';
+                        btn.classList.add('recording');
+                    } else {
+                        btn.textContent = '전/후 비교 보기';
+                        btn.classList.remove('recording');
+                    }
+                }
+                
+                if (mediaStream) {
+                    updateVideoDisplay(mediaStream);
                 }
             }
 
@@ -1038,9 +993,16 @@
                 });
             });
 
-            const studioModeBtn = document.getElementById('studio-mode-btn');
-            if (studioModeBtn) {
-                studioModeBtn.addEventListener('click', toggleStudioMode);
+            // 배경 제거 및 비교 모드 버튼 이벤트
+            const toggleBackgroundRemovalBtn = document.getElementById('toggle-background-removal');
+            const toggleComparisonBtn = document.getElementById('toggle-comparison');
+            
+            if (toggleBackgroundRemovalBtn) {
+                toggleBackgroundRemovalBtn.addEventListener('click', toggleBackgroundRemoval);
+            }
+            
+            if (toggleComparisonBtn) {
+                toggleComparisonBtn.addEventListener('click', toggleComparison);
             }
 
             /**
@@ -1064,20 +1026,8 @@
                 }
             }
 
-            /**
-             * Transform 모달을 표시합니다 (소스 변형 도구).
-             */
-            function showTransformModal() {
-                if (selectedSourceId === null) {
-                    alert('변형할 소스를 선택하세요.');
-                    return;
-                }
-                alert('Transform 기능은 추후 구현 예정입니다.\n(위치, 크기, 회전 조절)');
-            }
-
             const menuShowRecordings = document.getElementById('menu-show-recordings');
             const menuSettings = document.getElementById('menu-settings');
-            const menuTransform = document.getElementById('menu-transform');
             const menuCheckUpdates = document.getElementById('menu-check-updates');
             const menuAbout = document.getElementById('menu-about');
             
@@ -1085,7 +1035,6 @@
             if (menuSettings) menuSettings.addEventListener('click', () => {
                 document.getElementById('open-settings')?.click();
             });
-            if (menuTransform) menuTransform.addEventListener('click', showTransformModal);
             if (menuCheckUpdates) menuCheckUpdates.addEventListener('click', checkForUpdatesManually);
             if (menuAbout) menuAbout.addEventListener('click', () => {
                 alert('Spotlight Cam v' + (isElectron ? require('electron').remote?.app?.getVersion() || '1.0.0' : '1.0.0') + '\n\n크로마키를 대체하는 AI 객체 추적 및 배경 제거 시스템\n\n팀: Anywhere Studio');
