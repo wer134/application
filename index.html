@@ -548,7 +548,6 @@
                 }
                 
                 // TODO: 실제 배경 제거 AI 처리 로직 추가 필요
-                console.log('배경 제거:', backgroundRemovalEnabled ? '활성화' : '비활성화');
                 
                 if (mediaStream) {
                     updateVideoDisplay(mediaStream);
@@ -692,7 +691,6 @@
                 const muteBtn = document.querySelector(`[data-mute="${trackType}"]`);
                 const slider = document.querySelector(`[data-volume="${trackType}"]`);
                 
-                console.log(`${trackType} 음소거 토글: ${audioMuted[trackType]}`);
                 
                 if (audioMuted[trackType]) {
                     gainNodes[trackType].gain.value = 0;
@@ -716,37 +714,36 @@
              * 오디오 믹서 컨트롤(볼륨 슬라이더, 음소거 버튼)의 이벤트 리스너를 설정합니다.
              */
             function setupAudioMixerControls() {
-                // 기존 이벤트 리스너 제거를 위해 클론 후 재등록
-                document.querySelectorAll('.volume-slider').forEach(slider => {
-                    // 기존 리스너 제거 후 새로 등록
-                    const newSlider = slider.cloneNode(true);
-                    slider.parentNode.replaceChild(newSlider, slider);
-                    newSlider.addEventListener('input', (e) => {
+                // 이벤트 위임 사용 - 한 번만 등록
+                const audioMixerPanel = document.getElementById('audio-mixer-panel');
+                if (!audioMixerPanel) return;
+                
+                // 기존 리스너 제거 후 재등록
+                const newPanel = audioMixerPanel.cloneNode(true);
+                audioMixerPanel.parentNode.replaceChild(newPanel, audioMixerPanel);
+                
+                // 볼륨 슬라이더 이벤트 위임
+                newPanel.addEventListener('input', (e) => {
+                    if (e.target.classList.contains('volume-slider')) {
                         const trackType = e.target.dataset.volume;
                         const dbValue = parseFloat(e.target.value);
-                        
-                        if (!audioMuted[trackType]) {
+                        if (trackType && !audioMuted[trackType]) {
                             setVolume(trackType, dbValue);
                         }
-                    });
-                });
-
-                document.querySelectorAll('.mute-btn').forEach(btn => {
-                    // 기존 리스너 제거 후 새로 등록
-                    const trackType = btn.dataset.mute;
-                    if (!trackType) {
-                        console.warn('mute-btn에 data-mute 속성이 없습니다:', btn);
-                        return;
                     }
-                    
-                    const newBtn = btn.cloneNode(true);
-                    btn.parentNode.replaceChild(newBtn, btn);
-                    newBtn.addEventListener('click', (e) => {
+                });
+                
+                // 음소거 버튼 이벤트 위임
+                newPanel.addEventListener('click', (e) => {
+                    const muteBtn = e.target.closest('.mute-btn');
+                    if (muteBtn) {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('음소거 버튼 클릭:', trackType);
-                        toggleMute(trackType);
-                    });
+                        const trackType = muteBtn.dataset.mute;
+                        if (trackType) {
+                            toggleMute(trackType);
+                        }
+                    }
                 });
             }
 
@@ -858,7 +855,6 @@
                         timestamp: Date.now()
                     };
                     localStorage.setItem('spotlightCamSettings', JSON.stringify(settings));
-                    console.log('설정 저장 완료:', settings);
                 } catch (error) {
                     console.error('설정 저장 실패:', error);
                 }
@@ -873,7 +869,6 @@
                     if (!saved) return null;
                     
                     const settings = JSON.parse(saved);
-                    console.log('설정 불러오기:', settings);
                     
                     // 설정 적용
                     if (settings.videoSource && videoSelect) {
@@ -1086,7 +1081,6 @@
              * 새 장면을 추가합니다.
              */
             function addScene() {
-                console.log('addScene 함수 호출됨');
                 const sceneNameInput = document.getElementById('scene-name-input');
                 const sceneName = sceneNameInput?.value?.trim();
                 
@@ -1101,7 +1095,6 @@
                 renderScenes();
                 switchScene(newId);
                 closeAddSceneModal();
-                console.log(`새 장면 추가됨: ${sceneName} (ID: ${newId})`);
             }
 
             /**
@@ -1159,42 +1152,46 @@
                 
                 currentSceneId = sceneId;
                 renderScenes();
-                console.log(`장면 전환: ${scene.name}`);
             }
 
             /**
              * 장면 패널의 버튼 이벤트 리스너를 설정합니다.
              */
             function setupScenesPanel() {
-                const addBtn = document.getElementById('add-scene-btn');
-                const removeBtn = document.getElementById('remove-scene-btn');
-                const moveUpBtn = document.getElementById('move-scene-up-btn');
-                const moveDownBtn = document.getElementById('move-scene-down-btn');
+                const scenesPanel = document.getElementById('scenes-panel');
+                if (!scenesPanel) return;
+                
+                // 기존 리스너 제거 후 재등록
+                const newPanel = scenesPanel.cloneNode(true);
+                scenesPanel.parentNode.replaceChild(newPanel, scenesPanel);
+                
+                // 이벤트 위임 사용
+                newPanel.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const btn = e.target.closest('button');
+                    if (!btn) return;
+                    
+                    const btnId = btn.id;
+                    if (btnId === 'add-scene-btn') {
+                        openAddSceneModal();
+                    } else if (btnId === 'remove-scene-btn') {
+                        removeScene();
+                    } else if (btnId === 'move-scene-up-btn') {
+                        moveSceneUp();
+                    } else if (btnId === 'move-scene-down-btn') {
+                        moveSceneDown();
+                    }
+                });
                 
                 // Scene 추가 모달 버튼 이벤트
                 const addSceneConfirmBtn = document.getElementById('add-scene-confirm');
                 const cancelAddSceneBtn = document.getElementById('cancel-add-scene');
                 const sceneNameInput = document.getElementById('scene-name-input');
                 
-                if (addBtn) {
-                    console.log('Scene 추가 버튼 이벤트 리스너 등록');
-                    // 기존 리스너 제거 후 새로 등록
-                    const newAddBtn = addBtn.cloneNode(true);
-                    addBtn.parentNode.replaceChild(newAddBtn, addBtn);
-                    newAddBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Scene 추가 버튼 클릭됨');
-                        openAddSceneModal();
-                    }, true);
-                } else {
-                    console.error('Scene 추가 버튼을 찾을 수 없습니다!');
-                }
-                
                 if (addSceneConfirmBtn) {
-                    const newConfirmBtn = addSceneConfirmBtn.cloneNode(true);
-                    addSceneConfirmBtn.parentNode.replaceChild(newConfirmBtn, addSceneConfirmBtn);
-                    newConfirmBtn.addEventListener('click', (e) => {
+                    addSceneConfirmBtn.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         addScene();
@@ -1202,50 +1199,19 @@
                 }
                 
                 if (cancelAddSceneBtn) {
-                    const newCancelBtn = cancelAddSceneBtn.cloneNode(true);
-                    cancelAddSceneBtn.parentNode.replaceChild(newCancelBtn, cancelAddSceneBtn);
-                    newCancelBtn.addEventListener('click', (e) => {
+                    cancelAddSceneBtn.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         closeAddSceneModal();
                     });
                 }
                 
-                // Enter 키로 장면 추가
                 if (sceneNameInput) {
                     sceneNameInput.addEventListener('keypress', (e) => {
                         if (e.key === 'Enter') {
                             e.preventDefault();
                             addScene();
                         }
-                    });
-                }
-                
-                if (removeBtn) {
-                    const newRemoveBtn = removeBtn.cloneNode(true);
-                    removeBtn.parentNode.replaceChild(newRemoveBtn, removeBtn);
-                    newRemoveBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        removeScene();
-                    });
-                }
-                if (moveUpBtn) {
-                    const newMoveUpBtn = moveUpBtn.cloneNode(true);
-                    moveUpBtn.parentNode.replaceChild(newMoveUpBtn, moveUpBtn);
-                    newMoveUpBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        moveSceneUp();
-                    });
-                }
-                if (moveDownBtn) {
-                    const newMoveDownBtn = moveDownBtn.cloneNode(true);
-                    moveDownBtn.parentNode.replaceChild(newMoveDownBtn, moveDownBtn);
-                    newMoveDownBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        moveSceneDown();
                     });
                 }
                 
@@ -1452,74 +1418,45 @@
              * 소스 패널의 버튼 이벤트 리스너를 설정합니다.
              */
             function setupSourcesPanel() {
-                const addBtn = document.getElementById('add-source-btn');
-                const removeBtn = document.getElementById('remove-source-btn');
-                const settingsBtn = document.getElementById('source-settings-btn');
-                const moveUpBtn = document.getElementById('move-source-up-btn');
-                const moveDownBtn = document.getElementById('move-source-down-btn');
-                const addSourceModal = document.getElementById('add-source-modal');
-                const addSourceConfirm = document.getElementById('add-source-confirm');
-                const cancelAddSource = document.getElementById('cancel-add-source');
+                const sourcesPanel = document.getElementById('sources-panel');
+                if (!sourcesPanel) return;
                 
-                if (addBtn) {
-                    const newAddBtn = addBtn.cloneNode(true);
-                    addBtn.parentNode.replaceChild(newAddBtn, addBtn);
-                    newAddBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Source 추가 버튼 클릭됨');
+                // 기존 리스너 제거 후 재등록
+                const newPanel = sourcesPanel.cloneNode(true);
+                sourcesPanel.parentNode.replaceChild(newPanel, sourcesPanel);
+                
+                // 이벤트 위임 사용
+                newPanel.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const btn = e.target.closest('button');
+                    if (!btn) return;
+                    
+                    const btnId = btn.id;
+                    if (btnId === 'add-source-btn') {
                         openAddSourceModal();
-                    }, true);
-                }
-                
-                if (removeBtn) {
-                    const newRemoveBtn = removeBtn.cloneNode(true);
-                    removeBtn.parentNode.replaceChild(newRemoveBtn, removeBtn);
-                    newRemoveBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                    } else if (btnId === 'remove-source-btn') {
                         removeSource();
-                    });
-                }
-                
-                if (settingsBtn) {
-                    const newSettingsBtn = settingsBtn.cloneNode(true);
-                    settingsBtn.parentNode.replaceChild(newSettingsBtn, settingsBtn);
-                    newSettingsBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                    } else if (btnId === 'source-settings-btn') {
                         if (selectedSourceId === null) {
                             alert('설정할 소스를 선택하세요.');
                         } else {
                             alert('소스 설정 기능은 추후 구현 예정입니다.');
                         }
-                    });
-                }
-                
-                if (moveUpBtn) {
-                    const newMoveUpBtn = moveUpBtn.cloneNode(true);
-                    moveUpBtn.parentNode.replaceChild(newMoveUpBtn, moveUpBtn);
-                    newMoveUpBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                    } else if (btnId === 'move-source-up-btn') {
                         moveSourceUp();
-                    });
-                }
-                
-                if (moveDownBtn) {
-                    const newMoveDownBtn = moveDownBtn.cloneNode(true);
-                    moveDownBtn.parentNode.replaceChild(newMoveDownBtn, moveDownBtn);
-                    newMoveDownBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                    } else if (btnId === 'move-source-down-btn') {
                         moveSourceDown();
-                    });
-                }
+                    }
+                });
+                
+                // 모달 버튼 이벤트
+                const addSourceConfirm = document.getElementById('add-source-confirm');
+                const cancelAddSource = document.getElementById('cancel-add-source');
                 
                 if (addSourceConfirm) {
-                    const newConfirmBtn = addSourceConfirm.cloneNode(true);
-                    addSourceConfirm.parentNode.replaceChild(newConfirmBtn, addSourceConfirm);
-                    newConfirmBtn.addEventListener('click', (e) => {
+                    addSourceConfirm.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         addSource();
@@ -1527,9 +1464,7 @@
                 }
                 
                 if (cancelAddSource) {
-                    const newCancelBtn = cancelAddSource.cloneNode(true);
-                    cancelAddSource.parentNode.replaceChild(newCancelBtn, cancelAddSource);
-                    newCancelBtn.addEventListener('click', (e) => {
+                    cancelAddSource.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         closeAddSourceModal();
@@ -1557,18 +1492,15 @@
              */
             function connectToRaspberryPi(ip, port = 8765) {
                 if (piWebSocket && piWebSocket.readyState === WebSocket.OPEN) {
-                    console.log('이미 라즈베리파이에 연결되어 있습니다.');
                     return;
                 }
 
                 const wsUrl = `ws://${ip}:${port}`;
-                console.log(`라즈베리파이 연결 시도: ${wsUrl}`);
 
                 try {
                     piWebSocket = new WebSocket(wsUrl);
 
                     piWebSocket.onopen = () => {
-                        console.log('라즈베리파이 연결 성공');
                         piConnected = true;
                         piReconnectAttempts = 0;
                         updatePiConnectionStatus(true);
@@ -1589,7 +1521,6 @@
                     };
 
                     piWebSocket.onclose = (event) => {
-                        console.log('라즈베리파이 연결 종료', event.code, event.reason);
                         piConnected = false;
                         updatePiConnectionStatus(false);
                         
@@ -1639,7 +1570,6 @@
              */
             function attemptReconnect(ip, port) {
                 piReconnectAttempts++;
-                console.log(`재연결 시도 ${piReconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
                 
                 updatePiConnectionStatus(false, `재연결 시도 중... (${piReconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
                 
@@ -1657,13 +1587,11 @@
                         handlePiVideoFrame(data.frame);
                         break;
                     case 'motor_status':
-                        console.log('모터 상태:', data.status);
                         break;
                     case 'system_info':
-                        console.log('시스템 정보:', data.info);
                         break;
                     default:
-                        console.log('알 수 없는 메시지 타입:', data.type);
+                        // Unknown message type
                 }
             }
 
@@ -1765,7 +1693,6 @@
                 };
 
                 piWebSocket.send(JSON.stringify(command));
-                console.log('모터 제어 명령 전송:', command);
             }
 
             /**
@@ -1955,30 +1882,20 @@
              */
             (async function init() {
                 try {
-                    // DOM이 완전히 로드될 때까지 대기
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    
-                    console.log('애플리케이션 초기화 시작...');
-                    
                     // 오디오 믹서 컨트롤 설정
                     setupAudioMixerControls();
-                    console.log('오디오 믹서 컨트롤 설정 완료');
                     
                     // 장면 패널 설정
                     setupScenesPanel();
-                    console.log('장면 패널 설정 완료');
                     
                     // 소스 패널 설정
                     setupSourcesPanel();
-                    console.log('소스 패널 설정 완료');
                     
                     // 라즈베리파이 연결 UI 설정
                     setupPiConnectionUI();
-                    console.log('라즈베리파이 연결 UI 설정 완료');
                     
                     // 업데이트 모달 설정
                     setupUpdateModal();
-                    console.log('업데이트 모달 설정 완료');
                     
                     // 배경 제거 및 비교 모드 버튼 이벤트
                     const toggleBackgroundRemovalBtn = document.getElementById('toggle-background-removal');
@@ -1986,17 +1903,14 @@
                     
                     if (toggleBackgroundRemovalBtn) {
                         toggleBackgroundRemovalBtn.addEventListener('click', toggleBackgroundRemoval);
-                        console.log('배경 제거 버튼 이벤트 등록 완료');
                     }
                     
                     if (toggleComparisonBtn) {
                         toggleComparisonBtn.addEventListener('click', toggleComparison);
-                        console.log('비교 모드 버튼 이벤트 등록 완료');
                     }
                     
                     // 카메라/마이크 장치 목록 가져오기
                     await getDevices();
-                    console.log('장치 목록 로드 완료');
                     
                     // 저장된 설정 불러오기
                     const savedSettings = loadSettings();
@@ -2004,16 +1918,12 @@
                     // 저장된 설정이 있으면 적용, 없으면 기본 장치로 스트림 시작
                     if (savedSettings && savedSettings.videoSource && savedSettings.audioSource) {
                         await startStream(savedSettings.videoSource, savedSettings.audioSource);
-                        console.log('저장된 설정으로 스트림 시작');
                     } else {
                         await startStream();
-                        console.log('기본 장치로 스트림 시작');
                     }
                     
-                    // 스트림 시작 후 오디오 믹서 컨트롤 다시 설정 (스트림이 시작된 후에 설정)
+                    // 스트림 시작 후 오디오 믹서 컨트롤 다시 설정
                     setupAudioMixerControls();
-                    
-                    console.log('애플리케이션 초기화 완료');
                 } catch (error) {
                     console.error('초기화 중 오류 발생:', error);
                 }
