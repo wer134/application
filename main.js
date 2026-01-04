@@ -9,7 +9,6 @@ let savePath = 'C:\\VideoRecoding';
 
 // 업데이트 서버 URL (GitHub Releases 또는 자체 서버)
 const UPDATE_SERVER_URL = 'https://raw.githubusercontent.com/wer134/application/main/updates/latest.json';
-// 또는 자체 서버: 'https://your-server.com/updates/latest.json'
 
 /**
  * 메인 브라우저 창을 생성합니다.
