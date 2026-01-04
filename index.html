@@ -377,6 +377,7 @@
             let recStartTime = 0;                     // 녹화 시작 시간 (타임스탬프)
             let audioContext = null;                   // Web Audio API 컨텍스트 (오디오 처리)
             let gainNodes = { desktop: null, mic: null }; // 오디오 볼륨 제어용 GainNode
+            let analysers = { desktop: null, mic: null }; // 각 트랙별 Analyser
             let audioMuted = { desktop: false, mic: false }; // 오디오 음소거 상태
             let scenes = [{ id: 0, name: 'Scene' }];  // 장면 목록 배열
             let currentSceneId = 0;                   // 현재 활성 장면 ID
@@ -617,37 +618,69 @@
 
                 audioContext = new AudioContext();
                 const source = audioContext.createMediaStreamSource(stream);
+                
+                // 각 트랙별로 별도의 GainNode와 Analyser 생성
                 gainNodes.mic = audioContext.createGain();
                 gainNodes.desktop = audioContext.createGain();
                 gainNodes.mic.gain.value = 1.0;
                 gainNodes.desktop.gain.value = 1.0;
                 
-                const analyser = audioContext.createAnalyser();
-                analyser.fftSize = 256;
-                const bufferLength = analyser.frequencyBinCount;
-                const dataArray = new Uint8Array(bufferLength);
-
+                // Mic용 Analyser
+                analysers.mic = audioContext.createAnalyser();
+                analysers.mic.fftSize = 256;
+                
+                // Desktop용 Analyser
+                analysers.desktop = audioContext.createAnalyser();
+                analysers.desktop.fftSize = 256;
+                
+                // 오디오 연결: source -> 각 gainNode -> 각 analyser -> destination
                 source.connect(gainNodes.mic);
-                gainNodes.mic.connect(gainNodes.desktop);
-                gainNodes.desktop.connect(analyser);
+                source.connect(gainNodes.desktop);
+                gainNodes.mic.connect(analysers.mic);
+                gainNodes.desktop.connect(analysers.desktop);
+                analysers.mic.connect(audioContext.destination);
+                analysers.desktop.connect(audioContext.destination);
+
+                const micBufferLength = analysers.mic.frequencyBinCount;
+                const micDataArray = new Uint8Array(micBufferLength);
+                
+                const desktopBufferLength = analysers.desktop.frequencyBinCount;
+                const desktopDataArray = new Uint8Array(desktopBufferLength);
 
                 function updateMeter() {
                     if (!audioContext) return;
 
-                    analyser.getByteTimeDomainData(dataArray); 
-
-                    let maxVal = 0;
-                    for (let i = 0; i < bufferLength; i++) {
-                        const v = Math.abs(dataArray[i] - 128); 
-                        if (v > maxVal) {
-                            maxVal = v;
+                    // Mic 미터 업데이트
+                    if (analysers.mic && !audioMuted.mic) {
+                        analysers.mic.getByteTimeDomainData(micDataArray);
+                        let micMaxVal = 0;
+                        for (let i = 0; i < micBufferLength; i++) {
+                            const v = Math.abs(micDataArray[i] - 128);
+                            if (v > micMaxVal) {
+                                micMaxVal = v;
+                            }
                         }
+                        const micVolumePercent = (micMaxVal / 128) * 100;
+                        if (micMeter) micMeter.style.width = micVolumePercent + '%';
+                    } else {
+                        if (micMeter) micMeter.style.width = '0%';
                     }
-                    const volumePercent = (maxVal / 128) * 100;
-                    micMeter.style.width = volumePercent + '%';
 
-                    const fakeDesktopVolume = Math.min(100, volumePercent * 0.6 + Math.random() * 5);
-                    desktopMeter.style.width = fakeDesktopVolume + '%';
+                    // Desktop 미터 업데이트
+                    if (analysers.desktop && !audioMuted.desktop) {
+                        analysers.desktop.getByteTimeDomainData(desktopDataArray);
+                        let desktopMaxVal = 0;
+                        for (let i = 0; i < desktopBufferLength; i++) {
+                            const v = Math.abs(desktopDataArray[i] - 128);
+                            if (v > desktopMaxVal) {
+                                desktopMaxVal = v;
+                            }
+                        }
+                        const desktopVolumePercent = (desktopMaxVal / 128) * 100;
+                        if (desktopMeter) desktopMeter.style.width = desktopVolumePercent + '%';
+                    } else {
+                        if (desktopMeter) desktopMeter.style.width = '0%';
+                    }
 
                     requestAnimationFrame(updateMeter);
                 }
@@ -676,21 +709,32 @@
              * @param {string} trackType - 트랙 타입 ('desktop' 또는 'mic')
              */
             function toggleMute(trackType) {
-                if (!gainNodes[trackType]) return;
+                if (!gainNodes[trackType]) {
+                    console.error(`GainNode를 찾을 수 없습니다: ${trackType}`);
+                    return;
+                }
                 
                 audioMuted[trackType] = !audioMuted[trackType];
                 const muteBtn = document.querySelector(`[data-mute="${trackType}"]`);
                 const slider = document.querySelector(`[data-volume="${trackType}"]`);
                 
+                console.log(`${trackType} 음소거 토글: ${audioMuted[trackType]}`);
+                
                 if (audioMuted[trackType]) {
                     gainNodes[trackType].gain.value = 0;
-                    if (muteBtn) muteBtn.textContent = '🔇';
-                    if (muteBtn) muteBtn.style.opacity = '1';
+                    if (muteBtn) {
+                        muteBtn.textContent = '🔇';
+                        muteBtn.style.opacity = '1';
+                        muteBtn.setAttribute('data-muted', 'true');
+                    }
                 } else {
                     const dbValue = parseFloat(slider.value);
                     setVolume(trackType, dbValue);
-                    if (muteBtn) muteBtn.textContent = '🔊';
-                    if (muteBtn) muteBtn.style.opacity = '0.5';
+                    if (muteBtn) {
+                        muteBtn.textContent = '🔊';
+                        muteBtn.style.opacity = '0.5';
+                        muteBtn.setAttribute('data-muted', 'false');
+                    }
                 }
             }
 
@@ -795,14 +839,79 @@
                 const selectedVideoId = e.target.value;
                 const selectedAudioId = audioSelect.value;
                 startStream(selectedVideoId, selectedAudioId);
+                saveSettings(); // 설정 변경 시 자동 저장
             });
 
             audioSelect.addEventListener('change', (e) => {
                 const selectedAudioId = e.target.value;
                 const selectedVideoId = videoSelect.value;
                 startStream(selectedVideoId, selectedAudioId);
+                saveSettings(); // 설정 변경 시 자동 저장
             });
 
+
+            // ============================================
+            // 설정 저장/불러오기 함수
+            // ============================================
+            
+            /**
+             * 설정을 localStorage에 저장합니다.
+             */
+            function saveSettings() {
+                try {
+                    const settings = {
+                        videoSource: videoSelect.value,
+                        audioSource: audioSelect.value,
+                        raspberryPiIp: document.getElementById('raspberry-pi-ip')?.value || '',
+                        raspberryPiPort: document.getElementById('raspberry-pi-port')?.value || '8765',
+                        fileFormat: document.getElementById('file-format')?.value || 'webm',
+                        savePath: document.getElementById('save-path-display')?.value || 'C:\\VideoRecoding',
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem('spotlightCamSettings', JSON.stringify(settings));
+                    console.log('설정 저장 완료:', settings);
+                } catch (error) {
+                    console.error('설정 저장 실패:', error);
+                }
+            }
+            
+            /**
+             * localStorage에서 설정을 불러옵니다.
+             */
+            function loadSettings() {
+                try {
+                    const saved = localStorage.getItem('spotlightCamSettings');
+                    if (!saved) return null;
+                    
+                    const settings = JSON.parse(saved);
+                    console.log('설정 불러오기:', settings);
+                    
+                    // 설정 적용
+                    if (settings.videoSource && videoSelect) {
+                        videoSelect.value = settings.videoSource;
+                    }
+                    if (settings.audioSource && audioSelect) {
+                        audioSelect.value = settings.audioSource;
+                    }
+                    if (settings.raspberryPiIp) {
+                        const piIpInput = document.getElementById('raspberry-pi-ip');
+                        if (piIpInput) piIpInput.value = settings.raspberryPiIp;
+                    }
+                    if (settings.raspberryPiPort) {
+                        const piPortInput = document.getElementById('raspberry-pi-port');
+                        if (piPortInput) piPortInput.value = settings.raspberryPiPort;
+                    }
+                    if (settings.fileFormat) {
+                        const fileFormatSelect = document.getElementById('file-format');
+                        if (fileFormatSelect) fileFormatSelect.value = settings.fileFormat;
+                    }
+                    
+                    return settings;
+                } catch (error) {
+                    console.error('설정 불러오기 실패:', error);
+                    return null;
+                }
+            }
 
             const openSettingsBtn = document.getElementById('open-settings');
             const closeSettingsBtn = document.getElementById('close-settings');
@@ -816,25 +925,33 @@
                 // 설정 모달이 열릴 때 장치 목록 새로고침
                 await getDevices();
                 
+                // 저장된 설정 불러오기
+                const savedSettings = loadSettings();
+                
                 if (isElectron && window.electronAPI.invoke) {
                     try {
                         const currentPath = await window.electronAPI.invoke('get-save-path');
                         if (savePathDisplay) {
-                            savePathDisplay.value = currentPath || 'C:\\VideoRecoding';
+                            savePathDisplay.value = savedSettings?.savePath || currentPath || 'C:\\VideoRecoding';
                         }
                     } catch (err) {
                         console.error('저장 경로 가져오기 실패:', err);
                         if (savePathDisplay) {
-                            savePathDisplay.value = 'C:\\VideoRecoding';
+                            savePathDisplay.value = savedSettings?.savePath || 'C:\\VideoRecoding';
                         }
                     }
                 } else {
                     if (savePathDisplay) {
-                        savePathDisplay.value = 'C:\\VideoRecoding';
+                        savePathDisplay.value = savedSettings?.savePath || 'C:\\VideoRecoding';
                     }
                 }
             });
-            closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('visible'));
+            
+            closeSettingsBtn.addEventListener('click', () => {
+                // 닫기 전에 설정 저장
+                saveSettings();
+                settingsModal.classList.remove('visible');
+            });
 
             setSavePathBtn.addEventListener('click', async () => {
                 if (isElectron && window.electronAPI.invoke) {
@@ -842,6 +959,7 @@
                         const selectedPath = await window.electronAPI.invoke('select-save-path');
                         if (selectedPath && savePathDisplay) {
                             savePathDisplay.value = selectedPath;
+                            saveSettings(); // 저장 경로 변경 시 자동 저장
                         }
                     } catch (err) {
                         console.error('저장 경로 선택 실패:', err);
@@ -850,6 +968,23 @@
                     alert('Electron 환경에서만 사용 가능합니다.');
                 }
             });
+            
+            // 다른 설정 필드 변경 시 자동 저장
+            const piIpInput = document.getElementById('raspberry-pi-ip');
+            const piPortInput = document.getElementById('raspberry-pi-port');
+            const fileFormatSelect = document.getElementById('file-format');
+            
+            if (piIpInput) {
+                piIpInput.addEventListener('change', saveSettings);
+                piIpInput.addEventListener('blur', saveSettings);
+            }
+            if (piPortInput) {
+                piPortInput.addEventListener('change', saveSettings);
+                piPortInput.addEventListener('blur', saveSettings);
+            }
+            if (fileFormatSelect) {
+                fileFormatSelect.addEventListener('change', saveSettings);
+            }
 
             const openTransitionsBtn = document.getElementById('open-transitions-settings');
             const closeTransitionsBtn = document.getElementById('close-transitions-settings');
@@ -1042,11 +1177,19 @@
                 
                 if (addBtn) {
                     console.log('Scene 추가 버튼 이벤트 리스너 등록');
-                    addBtn.addEventListener('click', (e) => {
+                    // 기존 이벤트 리스너 제거 후 새로 등록 (중복 방지)
+                    addBtn.replaceWith(addBtn.cloneNode(true));
+                    const newAddBtn = document.getElementById('add-scene-btn');
+                    newAddBtn.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        console.log('Scene 추가 버튼 클릭됨');
                         addScene();
-                    });
+                    }, true); // capture phase에서도 처리
+                    newAddBtn.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }, true);
                 } else {
                     console.error('Scene 추가 버튼을 찾을 수 없습니다!');
                 }
@@ -1717,8 +1860,17 @@
                     // 카메라/마이크 장치 목록 가져오기
                     await getDevices();
                     
-                    // 기본 장치로 스트림 시작
-                    await startStream();
+                    // 저장된 설정 불러오기
+                    const savedSettings = loadSettings();
+                    
+                    // 저장된 설정이 있으면 적용, 없으면 기본 장치로 스트림 시작
+                    if (savedSettings && savedSettings.videoSource && savedSettings.audioSource) {
+                        await startStream(savedSettings.videoSource, savedSettings.audioSource);
+                        console.log('저장된 설정으로 스트림 시작');
+                    } else {
+                        await startStream();
+                        console.log('기본 장치로 스트림 시작');
+                    }
                     
                     console.log('애플리케이션 초기화 완료');
                 } catch (error) {
