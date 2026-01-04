@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "releaseDate": "2024-01-15",
-  "downloadUrl": "https://github.com/wer134/application/releases/download/v1.0.0/VideoTracker-Setup-1.0.0.exe",
+  "downloadUrl": "https://github.com/wer134/application/releases/download/v1.0.0/Video%20Tracker-1.0.0%20Setup.exe",
   "releaseNotes": "Spotlight Cam 초기 릴리스\n\n주요 기능:\n- 비디오 녹화\n- 오디오 믹서\n- 장면 및 소스 관리\n- Studio Mode\n- 라즈베리파이 WebSocket 연동\n- 자동 업데이트"
 }
 
