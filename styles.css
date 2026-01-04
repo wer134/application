@@ -237,9 +237,15 @@ body {
     font-size: 1.1em;
     cursor: pointer;
     width: 25px;
+    padding: 4px;
+    border-radius: 3px;
+    transition: background-color 0.2s;
 }
 .dock-toolbar button:hover {
-    background-color: var(--color-blue);
+    background-color: var(--bg-light);
+}
+.dock-toolbar button:active {
+    background-color: var(--color-primary);
 }
 
 /* --- 개별 독 패널 크기 조정 (Flexbox) --- */
@@ -473,7 +479,19 @@ input[type="range"] {
     margin-top: 20px;
 }
 .modal-buttons .control-btn {
-    background-color: var(--color-blue);
+    background-color: var(--color-primary);
+    color: white;
+    border: 1px solid var(--color-primary-hover);
     cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s, transform 0.1s;
+}
+.modal-buttons .control-btn:hover {
+    background-color: var(--color-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+.modal-buttons .control-btn:active {
+    transform: translateY(0);
 }
 

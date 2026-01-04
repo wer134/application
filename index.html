@@ -962,12 +962,14 @@
              * 새 장면을 추가합니다.
              */
             function addScene() {
+                console.log('addScene 함수 호출됨');
                 const sceneName = prompt('장면 이름을 입력하세요:', `Scene ${scenes.length + 1}`);
                 if (sceneName && sceneName.trim()) {
                     const newId = Math.max(...scenes.map(s => s.id), -1) + 1;
                     scenes.push({ id: newId, name: sceneName.trim() });
                     renderScenes();
                     switchScene(newId);
+                    console.log(`새 장면 추가됨: ${sceneName.trim()} (ID: ${newId})`);
                 }
             }
 
@@ -1038,7 +1040,16 @@
                 const moveUpBtn = document.getElementById('move-scene-up-btn');
                 const moveDownBtn = document.getElementById('move-scene-down-btn');
                 
-                if (addBtn) addBtn.addEventListener('click', addScene);
+                if (addBtn) {
+                    console.log('Scene 추가 버튼 이벤트 리스너 등록');
+                    addBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        addScene();
+                    });
+                } else {
+                    console.error('Scene 추가 버튼을 찾을 수 없습니다!');
+                }
                 if (removeBtn) removeBtn.addEventListener('click', removeScene);
                 if (moveUpBtn) moveUpBtn.addEventListener('click', moveSceneUp);
                 if (moveDownBtn) moveDownBtn.addEventListener('click', moveSceneDown);
