@@ -350,6 +350,25 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="add-scene-modal">
+        <div class="modal-content">
+            <h2>장면 추가</h2>
+            
+            <fieldset>
+                <legend>장면 정보</legend>
+                <div class="setting-item">
+                    <label for="scene-name-input">장면 이름:</label>
+                    <input type="text" id="scene-name-input" placeholder="장면 이름을 입력하세요" style="flex-grow: 1; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px; font-size: 0.9em;">
+                </div>
+            </fieldset>
+
+            <div class="modal-buttons">
+                <button class="control-btn" id="add-scene-confirm">추가</button>
+                <button class="control-btn" id="cancel-add-scene">취소</button>
+            </div>
+        </div>
+    </div>
+
 
     <script>
         /**
@@ -1094,18 +1113,56 @@
             }
 
             /**
+             * Scene 추가 모달을 엽니다.
+             */
+            function openAddSceneModal() {
+                const modal = document.getElementById('add-scene-modal');
+                const sceneNameInput = document.getElementById('scene-name-input');
+                
+                if (modal) {
+                    modal.classList.add('visible');
+                    // 기본 장면 이름 설정
+                    if (sceneNameInput) {
+                        sceneNameInput.value = `Scene ${scenes.length + 1}`;
+                        sceneNameInput.focus();
+                        sceneNameInput.select();
+                    }
+                } else {
+                    console.error('Scene 추가 모달을 찾을 수 없습니다!');
+                }
+            }
+            
+            /**
+             * Scene 추가 모달을 닫습니다.
+             */
+            function closeAddSceneModal() {
+                const modal = document.getElementById('add-scene-modal');
+                const sceneNameInput = document.getElementById('scene-name-input');
+                
+                if (modal) modal.classList.remove('visible');
+                if (sceneNameInput) sceneNameInput.value = '';
+            }
+            
+            /**
              * 새 장면을 추가합니다.
              */
             function addScene() {
                 console.log('addScene 함수 호출됨');
-                const sceneName = prompt('장면 이름을 입력하세요:', `Scene ${scenes.length + 1}`);
-                if (sceneName && sceneName.trim()) {
-                    const newId = Math.max(...scenes.map(s => s.id), -1) + 1;
-                    scenes.push({ id: newId, name: sceneName.trim() });
-                    renderScenes();
-                    switchScene(newId);
-                    console.log(`새 장면 추가됨: ${sceneName.trim()} (ID: ${newId})`);
+                const sceneNameInput = document.getElementById('scene-name-input');
+                const sceneName = sceneNameInput?.value?.trim();
+                
+                if (!sceneName) {
+                    alert('장면 이름을 입력하세요.');
+                    if (sceneNameInput) sceneNameInput.focus();
+                    return;
                 }
+                
+                const newId = Math.max(...scenes.map(s => s.id), -1) + 1;
+                scenes.push({ id: newId, name: sceneName });
+                renderScenes();
+                switchScene(newId);
+                closeAddSceneModal();
+                console.log(`새 장면 추가됨: ${sceneName} (ID: ${newId})`);
             }
 
             /**
@@ -1175,24 +1232,44 @@
                 const moveUpBtn = document.getElementById('move-scene-up-btn');
                 const moveDownBtn = document.getElementById('move-scene-down-btn');
                 
+                // Scene 추가 모달 버튼 이벤트
+                const addSceneConfirmBtn = document.getElementById('add-scene-confirm');
+                const cancelAddSceneBtn = document.getElementById('cancel-add-scene');
+                const sceneNameInput = document.getElementById('scene-name-input');
+                
                 if (addBtn) {
                     console.log('Scene 추가 버튼 이벤트 리스너 등록');
-                    // 기존 이벤트 리스너 제거 후 새로 등록 (중복 방지)
-                    addBtn.replaceWith(addBtn.cloneNode(true));
-                    const newAddBtn = document.getElementById('add-scene-btn');
-                    newAddBtn.addEventListener('click', (e) => {
+                    addBtn.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         console.log('Scene 추가 버튼 클릭됨');
-                        addScene();
-                    }, true); // capture phase에서도 처리
-                    newAddBtn.addEventListener('mousedown', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }, true);
+                        openAddSceneModal();
+                    });
                 } else {
                     console.error('Scene 추가 버튼을 찾을 수 없습니다!');
                 }
+                
+                if (addSceneConfirmBtn) {
+                    addSceneConfirmBtn.addEventListener('click', () => {
+                        addScene();
+                    });
+                }
+                
+                if (cancelAddSceneBtn) {
+                    cancelAddSceneBtn.addEventListener('click', () => {
+                        closeAddSceneModal();
+                    });
+                }
+                
+                // Enter 키로 장면 추가
+                if (sceneNameInput) {
+                    sceneNameInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            addScene();
+                        }
+                    });
+                }
+                
                 if (removeBtn) removeBtn.addEventListener('click', removeScene);
                 if (moveUpBtn) moveUpBtn.addEventListener('click', moveSceneUp);
                 if (moveDownBtn) moveDownBtn.addEventListener('click', moveSceneDown);
