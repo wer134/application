@@ -72,11 +72,12 @@
                 </div>
                 <!-- 일반 모드 -->
                 <video id="main-video-feed" autoplay muted playsinline></video>
-                <!-- 리사이즈 핸들 -->
-                <div class="resize-handle" id="preview-resize-handle"></div>
             </section>
 
-            <section class="docks-container">
+            <!-- 리사이즈 바 -->
+            <div class="resize-bar" id="docks-resize-bar"></div>
+
+            <section class="docks-container" id="docks-container">
                 
                 <div class="dock-panel" id="scenes-panel">
                     <div class="dock-header"><h3>Scenes</h3></div>
@@ -1941,24 +1942,27 @@
             })();
 
             /**
-             * 프리뷰 영역 리사이즈 기능을 설정합니다.
+             * 하단 패널 상단 리사이즈 바를 통해 프리뷰 영역과 하단 패널의 크기를 조절합니다.
              */
             function setupPreviewResize() {
                 const previewArea = document.getElementById('preview-area');
-                const resizeHandle = document.getElementById('preview-resize-handle');
+                const docksContainer = document.getElementById('docks-container');
+                const resizeBar = document.getElementById('docks-resize-bar');
                 
-                if (!previewArea || !resizeHandle) return;
+                if (!previewArea || !docksContainer || !resizeBar) return;
                 
                 let isResizing = false;
                 let startY = 0;
-                let startHeight = 0;
+                let startPreviewHeight = 0;
+                let startDocksHeight = 0;
                 
-                resizeHandle.addEventListener('mousedown', (e) => {
+                resizeBar.addEventListener('mousedown', (e) => {
                     isResizing = true;
                     startY = e.clientY;
-                    startHeight = previewArea.offsetHeight;
+                    startPreviewHeight = previewArea.offsetHeight;
+                    startDocksHeight = docksContainer.offsetHeight;
                     e.preventDefault();
-                    document.body.style.cursor = 'nwse-resize';
+                    document.body.style.cursor = 'ns-resize';
                     document.body.style.userSelect = 'none';
                 });
                 
@@ -1966,13 +1970,21 @@
                     if (!isResizing) return;
                     
                     const deltaY = e.clientY - startY;
-                    const newHeight = startHeight + deltaY;
-                    const minHeight = 200;
-                    const maxHeight = window.innerHeight - 300; // 하단 패널 공간 확보
+                    const newPreviewHeight = startPreviewHeight + deltaY;
+                    const newDocksHeight = startDocksHeight - deltaY;
                     
-                    if (newHeight >= minHeight && newHeight <= maxHeight) {
-                        previewArea.style.height = newHeight + 'px';
+                    // 최소/최대 높이 제한
+                    const minPreviewHeight = 200;
+                    const minDocksHeight = 150;
+                    const maxPreviewHeight = window.innerHeight - 200; // 메뉴바, 상태바, 최소 패널 높이 고려
+                    
+                    if (newPreviewHeight >= minPreviewHeight && 
+                        newPreviewHeight <= maxPreviewHeight &&
+                        newDocksHeight >= minDocksHeight) {
+                        previewArea.style.height = newPreviewHeight + 'px';
                         previewArea.style.flexGrow = '0';
+                        docksContainer.style.height = newDocksHeight + 'px';
+                        docksContainer.style.flexGrow = '0';
                     }
                 });
                 
