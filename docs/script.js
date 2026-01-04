@@ -46,6 +46,16 @@ function formatDate(dateString) {
     if (!dateString) return '날짜 없음';
     
     try {
+        // "YYYY-MM-DD" 형식을 직접 파싱 (시간대 문제 방지)
+        const parts = dateString.split('-');
+        if (parts.length === 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            const day = parseInt(parts[2], 10);
+            return `${year}년 ${month}월 ${day}일`;
+        }
+        
+        // 폴백: Date 객체 사용
         const date = new Date(dateString);
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
