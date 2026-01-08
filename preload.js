@@ -32,10 +32,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @param {string} channel - 허용된 IPC 채널 이름
    * @returns {Promise} 메인 프로세스의 응답
    */
-  invoke: (channel) => {
-    const validChannels = ['select-save-path', 'get-save-path', 'show-recordings', 'check-for-updates'];
+  invoke: (channel, ...args) => {
+    const validChannels = [
+      'select-save-path', 
+      'get-save-path', 
+      'show-recordings', 
+      'check-for-updates',
+      'select-training-data-path',
+      'get-training-data-path',
+      'save-training-image',
+      'get-training-images',
+      'save-label',
+      'load-label',
+      'select-training-dataset-path',
+      'start-training',
+      'stop-training',
+      'get-training-status',
+      'select-dataset-download-path',
+      'download-dataset',
+      'get-dataset-download-status'
+    ];
     if (validChannels.includes(channel)) {
-      return ipcRenderer.invoke(channel);
+      return ipcRenderer.invoke(channel, ...args);
     }
     return Promise.reject(new Error('Invalid channel'));
   },

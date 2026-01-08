@@ -29,6 +29,7 @@
                 <ul class="dropdown-menu">
                     <li id="menu-copy">Copy</li>
                     <li id="menu-paste">Paste</li>
+                    <li id="menu-transform">Transform</li>
                 </ul>
             </div>
             <div class="menu-item">
@@ -45,6 +46,8 @@
                 <ul class="dropdown-menu">
                     <li>Auto-Configuration Wizard</li>
                     <li>Scripts</li>
+                    <hr>
+                    <li id="menu-ai-training">AI 학습</li>
                 </ul>
             </div>
             <div class="menu-item">
@@ -155,7 +158,9 @@
                     <div class="dock-content">
                         <button class="control-btn" id="start-recording-btn">Start Recording</button>
                         <button class="control-btn" id="toggle-background-removal">배경 제거: OFF</button>
+                        <button class="control-btn" id="toggle-background-replace">배경 교체</button>
                         <button class="control-btn" id="toggle-comparison">전/후 비교 보기</button>
+                        <button class="control-btn" id="toggle-auto-tracking">자동 추적: OFF</button>
                         <button class="control-btn" id="open-settings">Settings</button>
                         <button class="control-btn" id="exit-button">Exit</button>
                     </div>
@@ -196,6 +201,14 @@
                         <option value="auto">자동</option>
                         <option value="1080p">1920x1080</option>
                         <option value="720p">1280x720</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label for="video-framerate">프레임레이트:</label>
+                    <select id="video-framerate">
+                        <option value="auto">자동</option>
+                        <option value="30">30 fps</option>
+                        <option value="60">60 fps</option>
                     </select>
                 </div>
             </fieldset>
@@ -303,6 +316,368 @@
     </div>
 
 
+    <div class="modal-overlay" id="error-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 style="color: var(--color-danger); margin-bottom: 15px;">오류 발생</h2>
+            <div id="error-message" style="margin-bottom: 20px; line-height: 1.6; color: var(--text-primary);">
+                <!-- 에러 메시지가 여기에 표시됩니다 -->
+            </div>
+            <div class="modal-buttons" style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="control-btn" id="error-retry-btn" style="display: none;">다시 시도</button>
+                <button class="control-btn" id="error-settings-btn" style="display: none;">설정 열기</button>
+                <button class="control-btn" id="error-close-btn">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="transform-modal">
+        <div class="modal-content">
+            <h2>소스 변형 (Transform)</h2>
+            
+            <fieldset>
+                <legend>위치</legend>
+                <div class="setting-item">
+                    <label for="transform-x">X 위치:</label>
+                    <input type="number" id="transform-x" value="0" step="1" style="width: 100px; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                </div>
+                <div class="setting-item">
+                    <label for="transform-y">Y 위치:</label>
+                    <input type="number" id="transform-y" value="0" step="1" style="width: 100px; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                </div>
+            </fieldset>
+            
+            <fieldset>
+                <legend>크기</legend>
+                <div class="setting-item">
+                    <label for="transform-width">너비:</label>
+                    <input type="number" id="transform-width" value="640" step="1" style="width: 100px; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                </div>
+                <div class="setting-item">
+                    <label for="transform-height">높이:</label>
+                    <input type="number" id="transform-height" value="480" step="1" style="width: 100px; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                </div>
+                <div class="setting-item">
+                    <label for="transform-scale">크기 비율:</label>
+                    <input type="range" id="transform-scale" min="0.1" max="2" step="0.1" value="1" style="width: 200px;">
+                    <span id="transform-scale-value">100%</span>
+                </div>
+            </fieldset>
+            
+            <fieldset>
+                <legend>회전</legend>
+                <div class="setting-item">
+                    <label for="transform-rotation">각도:</label>
+                    <input type="range" id="transform-rotation" min="0" max="360" step="1" value="0" style="width: 200px;">
+                    <span id="transform-rotation-value">0°</span>
+                </div>
+            </fieldset>
+            
+            <div class="modal-buttons">
+                <button class="control-btn" id="transform-reset">초기화</button>
+                <button class="control-btn" id="transform-apply">적용</button>
+                <button class="control-btn" id="transform-close">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="background-replace-modal">
+        <div class="modal-content">
+            <h2>배경 교체</h2>
+            
+            <fieldset>
+                <legend>배경 타입</legend>
+                <div class="setting-item">
+                    <label>
+                        <input type="radio" name="background-type" value="none" checked>
+                        배경 없음 (투명)
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <input type="radio" name="background-type" value="image">
+                        이미지
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <input type="radio" name="background-type" value="video">
+                        비디오
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <input type="radio" name="background-type" value="color">
+                        단색
+                    </label>
+                </div>
+            </fieldset>
+            
+            <fieldset id="background-image-option" style="display: none;">
+                <legend>이미지 선택</legend>
+                <div class="setting-item">
+                    <input type="file" id="background-image-file" accept="image/*">
+                </div>
+            </fieldset>
+            
+            <fieldset id="background-video-option" style="display: none;">
+                <legend>비디오 선택</legend>
+                <div class="setting-item">
+                    <input type="file" id="background-video-file" accept="video/*">
+                </div>
+            </fieldset>
+            
+            <fieldset id="background-color-option" style="display: none;">
+                <legend>색상 선택</legend>
+                <div class="setting-item">
+                    <label for="background-color-picker">색상:</label>
+                    <input type="color" id="background-color-picker" value="#000000">
+                </div>
+            </fieldset>
+            
+            <div class="modal-buttons">
+                <button class="control-btn" id="background-replace-apply">적용</button>
+                <button class="control-btn" id="background-replace-close">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="ai-training-modal">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <h2>AI 학습 관리</h2>
+            
+            <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                <button class="control-btn" id="training-tab-data" style="flex: 1;">데이터 수집</button>
+                <button class="control-btn" id="training-tab-labeling" style="flex: 1;">데이터 라벨링</button>
+                <button class="control-btn" id="training-tab-training" style="flex: 1;">모델 학습</button>
+                <button class="control-btn" id="training-tab-dataset" style="flex: 1;">데이터셋 확보</button>
+            </div>
+
+            <!-- 데이터 수집 탭 -->
+            <div id="training-data-tab" class="training-tab-content">
+                <fieldset>
+                    <legend>학습 데이터 수집</legend>
+                    <div class="setting-item">
+                        <label>데이터셋 이름:</label>
+                        <input type="text" id="dataset-name" placeholder="예: person_detection_v1" style="flex-grow: 1; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                    </div>
+                    <div class="setting-item">
+                        <label>저장 위치:</label>
+                        <div style="display: flex; gap: 5px; flex-grow: 1;">
+                            <input type="text" id="training-data-path" readonly style="flex-grow: 1; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                            <button class="control-btn" id="select-training-data-path">선택...</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label>수집 옵션:</label>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <label>
+                                <input type="checkbox" id="collect-images" checked>
+                                이미지 캡처 (프레임 단위)
+                            </label>
+                            <label>
+                                <input type="checkbox" id="collect-videos">
+                                비디오 녹화
+                            </label>
+                            <label>
+                                <input type="number" id="capture-interval" value="1" min="0.1" max="10" step="0.1" style="width: 80px; margin-left: 10px;">
+                                초마다 캡처
+                            </label>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <div style="display: flex; gap: 10px;">
+                            <button class="control-btn" id="start-data-collection">수집 시작</button>
+                            <button class="control-btn" id="stop-data-collection" disabled>수집 중지</button>
+                            <span id="data-collection-status" style="padding: 5px 10px; border-radius: 3px; background-color: var(--bg-medium);">대기 중</span>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label>수집된 데이터:</label>
+                        <div id="collected-data-list" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; border-radius: 3px; background-color: var(--bg-medium);">
+                            <p style="color: var(--text-secondary); text-align: center;">수집된 데이터가 없습니다</p>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- 데이터 라벨링 탭 -->
+            <div id="training-labeling-tab" class="training-tab-content" style="display: none;">
+                <fieldset>
+                    <legend>데이터 라벨링</legend>
+                    <div class="setting-item">
+                        <label>이미지 선택:</label>
+                        <input type="file" id="labeling-image-file" accept="image/*" style="flex-grow: 1;">
+                    </div>
+                    <div class="setting-item">
+                        <label>라벨링 도구:</label>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="control-btn" id="labeling-tool-bbox">바운딩 박스</button>
+                            <button class="control-btn" id="labeling-tool-segmentation">세그멘테이션</button>
+                            <button class="control-btn" id="labeling-tool-clear">초기화</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label>클래스:</label>
+                        <select id="labeling-class" style="background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                            <option value="person">Person (사람)</option>
+                            <option value="background">Background (배경)</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <div style="border: 2px solid var(--border-color); border-radius: 5px; padding: 10px; background-color: var(--bg-dark);">
+                            <canvas id="labeling-canvas" style="max-width: 100%; height: auto; cursor: crosshair;"></canvas>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <div style="display: flex; gap: 10px;">
+                            <button class="control-btn" id="save-label">라벨 저장</button>
+                            <button class="control-btn" id="load-label">라벨 불러오기</button>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- 모델 학습 탭 -->
+            <div id="training-training-tab" class="training-tab-content" style="display: none;">
+                <fieldset>
+                    <legend>모델 학습 설정</legend>
+                    <div class="setting-item">
+                        <label>학습 타입:</label>
+                        <select id="training-type" style="background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                            <option value="yolo">YOLO 객체 감지</option>
+                            <option value="segmentation">배경 제거 세그멘테이션</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>데이터셋 경로:</label>
+                        <div style="display: flex; gap: 5px; flex-grow: 1;">
+                            <input type="text" id="training-dataset-path" readonly style="flex-grow: 1; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                            <button class="control-btn" id="select-training-dataset-path">선택...</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label>학습 파라미터:</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label>에포크 (Epochs):</label>
+                                <input type="number" id="training-epochs" value="100" min="1" max="1000" style="width: 100%; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                            </div>
+                            <div>
+                                <label>배치 크기 (Batch Size):</label>
+                                <input type="number" id="training-batch-size" value="16" min="1" max="64" style="width: 100%; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                            </div>
+                            <div>
+                                <label>학습률 (Learning Rate):</label>
+                                <input type="number" id="training-learning-rate" value="0.001" min="0.0001" max="0.1" step="0.0001" style="width: 100%; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                            </div>
+                            <div>
+                                <label>이미지 크기:</label>
+                                <select id="training-image-size" style="width: 100%; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                                    <option value="640">640x640</option>
+                                    <option value="1280">1280x1280</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <div style="display: flex; gap: 10px;">
+                            <button class="control-btn" id="start-training">학습 시작</button>
+                            <button class="control-btn" id="stop-training" disabled>학습 중지</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label>학습 진행 상황:</label>
+                        <div style="border: 1px solid var(--border-color); padding: 15px; border-radius: 3px; background-color: var(--bg-medium);">
+                            <div id="training-progress" style="margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>진행률: <span id="training-progress-percent">0%</span></span>
+                                    <span>에포크: <span id="training-current-epoch">0</span>/<span id="training-total-epochs">0</span></span>
+                                </div>
+                                <div style="width: 100%; height: 20px; background-color: var(--bg-dark); border-radius: 10px; overflow: hidden;">
+                                    <div id="training-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary-hover) 100%); transition: width 0.3s;"></div>
+                                </div>
+                            </div>
+                            <div id="training-log" style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85em; color: var(--text-secondary);">
+                                <p>학습 로그가 여기에 표시됩니다...</p>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- 데이터셋 확보 탭 -->
+            <div id="training-dataset-tab" class="training-tab-content" style="display: none;">
+                <fieldset>
+                    <legend>공개 데이터셋 다운로드</legend>
+                    <div class="setting-item">
+                        <label>데이터셋 선택:</label>
+                        <select id="dataset-select" style="width: 100%; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                            <option value="coco">COCO Dataset (객체 감지용)</option>
+                            <option value="voc">Pascal VOC Dataset</option>
+                            <option value="cityscapes">Cityscapes (세그멘테이션용)</option>
+                            <option value="custom">커스텀 URL</option>
+                        </select>
+                    </div>
+                    <div class="setting-item" id="custom-dataset-url" style="display: none;">
+                        <label>데이터셋 URL:</label>
+                        <input type="text" id="custom-dataset-url-input" placeholder="https://example.com/dataset.zip" style="width: 100%; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                    </div>
+                    <div class="setting-item">
+                        <label>저장 위치:</label>
+                        <div style="display: flex; gap: 5px; flex-grow: 1;">
+                            <input type="text" id="dataset-download-path" readonly style="flex-grow: 1; background-color: var(--bg-medium); color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px;">
+                            <button class="control-btn" id="select-dataset-download-path">선택...</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label>다운로드 옵션:</label>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <label>
+                                <input type="checkbox" id="download-images" checked>
+                                이미지 다운로드
+                            </label>
+                            <label>
+                                <input type="checkbox" id="download-labels" checked>
+                                라벨 다운로드
+                            </label>
+                            <label>
+                                <input type="checkbox" id="download-annotations">
+                                어노테이션 파일
+                            </label>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <div style="display: flex; gap: 10px;">
+                            <button class="control-btn" id="start-dataset-download">다운로드 시작</button>
+                            <button class="control-btn" id="stop-dataset-download" disabled>다운로드 중지</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label>다운로드 진행 상황:</label>
+                        <div style="border: 1px solid var(--border-color); padding: 15px; border-radius: 3px; background-color: var(--bg-medium);">
+                            <div style="margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>진행률: <span id="download-progress-percent">0%</span></span>
+                                    <span>속도: <span id="download-speed">0 MB/s</span></span>
+                                </div>
+                                <div style="width: 100%; height: 20px; background-color: var(--bg-dark); border-radius: 10px; overflow: hidden;">
+                                    <div id="download-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary-hover) 100%); transition: width 0.3s;"></div>
+                                </div>
+                            </div>
+                            <div id="download-log" style="max-height: 150px; overflow-y: auto; font-family: monospace; font-size: 0.85em; color: var(--text-secondary);">
+                                <p>다운로드 로그가 여기에 표시됩니다...</p>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="control-btn" id="ai-training-close">닫기</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="add-scene-modal">
         <div class="modal-content">
             <h2>장면 추가</h2>
@@ -358,6 +733,12 @@
             let nextSourceId = 1;                      // 다음 소스 ID (자동 증가)
             let backgroundRemovalEnabled = false;      // 배경 제거 활성화 상태
             let comparisonMode = false;                 // 전/후 비교 모드 활성화 상태
+            let backgroundImage = null;                 // 배경 교체용 이미지
+            let backgroundVideo = null;                 // 배경 교체용 비디오
+            let processedStream = null;                 // 배경 제거 처리된 스트림
+            let backgroundCanvas = null;                // 배경 제거용 Canvas
+            let backgroundCtx = null;                   // Canvas 컨텍스트
+            let backgroundAnimationFrame = null;        // 애니메이션 프레임 ID
             
             // ============================================
             // 라즈베리파이 WebSocket 연결 변수
@@ -369,6 +750,13 @@
             const MAX_RECONNECT_ATTEMPTS = 5;         // 최대 재연결 시도 횟수
             const RECONNECT_DELAY = 3000;             // 재연결 대기 시간 (3초)
             let piVideoStream = null;                  // 라즈베리파이에서 수신한 비디오 스트림
+            let autoTrackingEnabled = false;           // 자동 추적 모드 활성화 상태
+            let yoloModel = null;                      // YOLO 모델 (추후 로드)
+            let trackingCanvas = null;                 // 객체 추적용 Canvas
+            let trackingCtx = null;                    // Canvas 컨텍스트
+            let detectedObjects = [];                  // 감지된 객체 목록
+            let trackingAnimationFrame = null;         // 추적 애니메이션 프레임 ID
+            let lastMotorCommand = { pan: 0, tilt: 0 }; // 마지막 모터 명령
 
             // Electron API 사용 가능 여부 확인
             const isElectron = typeof window.electronAPI !== 'undefined' && typeof window.electronAPI.send === 'function';
@@ -467,10 +855,46 @@
                     mediaStream.getTracks().forEach(track => track.stop());
                 }
 
-                // 빈 문자열이나 undefined일 때 기본 장치 사용
+                // 해상도 및 프레임레이트 설정 가져오기
+                const resolutionSelect = document.getElementById('video-resolution');
+                const framerateSelect = document.getElementById('video-framerate');
+                const resolution = resolutionSelect?.value || 'auto';
+                const framerate = framerateSelect?.value || 'auto';
+
+                // 비디오 constraints 구성
+                let videoConstraints = {};
+                
+                // 장치 ID 설정
+                if (videoDeviceId && videoDeviceId.trim()) {
+                    videoConstraints.deviceId = { exact: videoDeviceId };
+                }
+                
+                // 해상도 설정
+                if (resolution !== 'auto') {
+                    if (resolution === '1080p') {
+                        videoConstraints.width = { ideal: 1920 };
+                        videoConstraints.height = { ideal: 1080 };
+                    } else if (resolution === '720p') {
+                        videoConstraints.width = { ideal: 1280 };
+                        videoConstraints.height = { ideal: 720 };
+                    }
+                }
+                
+                // 프레임레이트 설정
+                if (framerate !== 'auto') {
+                    videoConstraints.frameRate = { ideal: parseInt(framerate, 10) };
+                }
+
+                // 오디오 constraints 구성
+                let audioConstraints = {};
+                if (audioDeviceId && audioDeviceId.trim()) {
+                    audioConstraints.deviceId = { exact: audioDeviceId };
+                }
+
+                // 최종 constraints 구성
                 const constraints = {
-                    video: (videoDeviceId && videoDeviceId.trim()) ? { deviceId: { exact: videoDeviceId } } : true,
-                    audio: (audioDeviceId && audioDeviceId.trim()) ? { deviceId: { exact: audioDeviceId } } : true
+                    video: Object.keys(videoConstraints).length > 0 ? videoConstraints : true,
+                    audio: Object.keys(audioConstraints).length > 0 ? audioConstraints : true
                 };
 
                 try {
@@ -495,10 +919,117 @@
                     }
                 } catch (err) {
                     console.error("미디어 장치 접근 오류:", err);
-                    videoFeed.style.backgroundColor = '#330000';
-                    sourcesContent.innerHTML = `<p style="color: #f44;">오류: 카메라/마이크 접근이<br>거부되었거나 사용 중입니다.</p>`;
+                    handleMediaError(err);
                     startRecordingBtn.disabled = true;
                 }
+            }
+
+            /**
+             * 미디어 장치 접근 오류를 처리하고 사용자에게 친화적인 메시지를 표시합니다.
+             * @param {Error} error - 발생한 에러 객체
+             */
+            function handleMediaError(error) {
+                const errorName = error.name || 'UnknownError';
+                let errorMessage = '';
+                let showRetry = true;
+                let showSettings = false;
+
+                // 에러 유형별 메시지 매핑
+                switch (errorName) {
+                    case 'NotAllowedError':
+                        errorMessage = '카메라/마이크 접근이 거부되었습니다.\n\n브라우저 설정에서 권한을 허용해주세요.\n(주소창 왼쪽 자물쇠 아이콘 클릭 → 권한 허용)';
+                        showSettings = true;
+                        break;
+                    case 'NotFoundError':
+                        errorMessage = '카메라/마이크를 찾을 수 없습니다.\n\n장치가 연결되어 있는지 확인해주세요.';
+                        showRetry = true;
+                        break;
+                    case 'NotReadableError':
+                        errorMessage = '카메라/마이크가 다른 프로그램에서 사용 중입니다.\n\n다른 프로그램을 종료한 후 다시 시도해주세요.';
+                        showRetry = true;
+                        break;
+                    case 'OverconstrainedError':
+                        errorMessage = '선택한 해상도/프레임레이트를 지원하지 않습니다.\n\n설정에서 다른 해상도나 프레임레이트를 선택해주세요.';
+                        showSettings = true;
+                        showRetry = false;
+                        break;
+                    case 'TypeError':
+                        errorMessage = '미디어 장치에 접근할 수 없습니다.\n\n장치가 올바르게 연결되어 있는지 확인해주세요.';
+                        showRetry = true;
+                        break;
+                    default:
+                        errorMessage = `카메라/마이크 접근 중 오류가 발생했습니다.\n\n오류 코드: ${errorName}\n${error.message || ''}`;
+                        showRetry = true;
+                }
+
+                // 비디오 피드에 에러 표시
+                const videoFeed = document.getElementById('main-video-feed');
+                if (videoFeed) {
+                    videoFeed.style.backgroundColor = '#330000';
+                }
+
+                // 소스 패널에 에러 메시지 표시
+                const sourcesContent = document.getElementById('sources-content');
+                if (sourcesContent) {
+                    sourcesContent.innerHTML = `<p style="color: #f44; padding: 20px; text-align: center;">${errorMessage.replace(/\n/g, '<br>')}</p>`;
+                }
+
+                // 에러 모달 표시
+                showErrorModal(errorMessage, showRetry, showSettings, () => {
+                    // 다시 시도 콜백
+                    const selectedVideoId = videoSelect.value;
+                    const selectedAudioId = audioSelect.value;
+                    startStream(selectedVideoId, selectedAudioId);
+                });
+            }
+
+            /**
+             * 에러 모달을 표시합니다.
+             * @param {string} message - 에러 메시지
+             * @param {boolean} showRetry - 다시 시도 버튼 표시 여부
+             * @param {boolean} showSettings - 설정 열기 버튼 표시 여부
+             * @param {Function} retryCallback - 다시 시도 버튼 클릭 시 실행할 콜백
+             */
+            function showErrorModal(message, showRetry, showSettings, retryCallback) {
+                const errorModal = document.getElementById('error-modal');
+                const errorMessage = document.getElementById('error-message');
+                const retryBtn = document.getElementById('error-retry-btn');
+                const settingsBtn = document.getElementById('error-settings-btn');
+                const closeBtn = document.getElementById('error-close-btn');
+
+                if (!errorModal || !errorMessage) return;
+
+                // 메시지 설정
+                errorMessage.textContent = message;
+
+                // 버튼 표시/숨김
+                if (retryBtn) {
+                    retryBtn.style.display = showRetry ? 'inline-block' : 'none';
+                    retryBtn.onclick = () => {
+                        if (retryCallback) retryCallback();
+                        errorModal.style.display = 'none';
+                    };
+                }
+
+                if (settingsBtn) {
+                    settingsBtn.style.display = showSettings ? 'inline-block' : 'none';
+                    settingsBtn.onclick = () => {
+                        errorModal.style.display = 'none';
+                        const settingsModal = document.getElementById('settings-modal');
+                        if (settingsModal) {
+                            settingsModal.classList.add('visible');
+                        }
+                    };
+                }
+
+                if (closeBtn) {
+                    closeBtn.onclick = () => {
+                        errorModal.style.display = 'none';
+                    };
+                }
+
+                // 모달 표시
+                errorModal.style.display = 'flex';
             }
 
             /**
@@ -520,16 +1051,24 @@
                         originalVideo.srcObject = stream.clone();
                     }
                     if (processedVideo) {
-                        // TODO: 배경 제거 처리된 스트림을 processedVideo에 연결
-                        // 현재는 원본과 동일하게 표시 (AI 처리 로직 추가 필요)
-                        processedVideo.srcObject = stream;
+                        // 배경 제거가 활성화되어 있으면 처리된 스트림 사용
+                        if (backgroundRemovalEnabled && processedStream) {
+                            processedVideo.srcObject = processedStream;
+                        } else {
+                            processedVideo.srcObject = stream;
+                        }
                     }
                 } else {
                     // 일반 모드: 단일 비디오 표시
                     if (comparisonContainer) comparisonContainer.classList.remove('active');
                     if (videoFeed) {
                         videoFeed.style.display = 'block';
-                        videoFeed.srcObject = stream;
+                        // 배경 제거가 활성화되어 있으면 처리된 스트림 사용
+                        if (backgroundRemovalEnabled && processedStream) {
+                            videoFeed.srcObject = processedStream;
+                        } else {
+                            videoFeed.srcObject = stream;
+                        }
                     }
                 }
             }
@@ -545,15 +1084,921 @@
                     btn.textContent = `배경 제거: ${backgroundRemovalEnabled ? 'ON' : 'OFF'}`;
                     if (backgroundRemovalEnabled) {
                         btn.classList.add('recording');
-                } else {
+                    } else {
                         btn.classList.remove('recording');
                     }
                 }
                 
-                // TODO: 실제 배경 제거 AI 처리 로직 추가 필요
+                if (backgroundRemovalEnabled) {
+                    startBackgroundRemoval();
+                } else {
+                    stopBackgroundRemoval();
+                }
                 
                 if (mediaStream) {
                     updateVideoDisplay(mediaStream);
+                }
+            }
+
+            /**
+             * 배경 제거 처리를 시작합니다.
+             */
+            function startBackgroundRemoval() {
+                if (!mediaStream) return;
+                
+                // Canvas 생성 (아직 생성되지 않은 경우)
+                if (!backgroundCanvas) {
+                    backgroundCanvas = document.createElement('canvas');
+                    backgroundCtx = backgroundCanvas.getContext('2d', { willReadFrequently: true });
+                }
+                
+                // 비디오 트랙 가져오기
+                const videoTrack = mediaStream.getVideoTracks()[0];
+                if (!videoTrack) return;
+                
+                // 비디오 요소 생성 (프레임 캡처용)
+                const tempVideo = document.createElement('video');
+                tempVideo.srcObject = mediaStream;
+                tempVideo.autoplay = true;
+                tempVideo.muted = true;
+                tempVideo.playsInline = true;
+                
+                tempVideo.addEventListener('loadedmetadata', () => {
+                    backgroundCanvas.width = tempVideo.videoWidth || 640;
+                    backgroundCanvas.height = tempVideo.videoHeight || 480;
+                    
+                    // Canvas 스트림 생성
+                    processedStream = backgroundCanvas.captureStream(30); // 30fps
+                    
+                    // 오디오 트랙 추가
+                    const audioTracks = mediaStream.getAudioTracks();
+                    audioTracks.forEach(track => {
+                        processedStream.addTrack(track);
+                    });
+                    
+                    // 프레임 처리 시작
+                    processBackgroundRemoval(tempVideo);
+                });
+            }
+
+            /**
+             * 배경 제거 처리를 중지합니다.
+             */
+            function stopBackgroundRemoval() {
+                if (backgroundAnimationFrame) {
+                    cancelAnimationFrame(backgroundAnimationFrame);
+                    backgroundAnimationFrame = null;
+                }
+                
+                if (processedStream) {
+                    processedStream.getTracks().forEach(track => {
+                        if (track !== mediaStream.getTracks().find(t => t.id === track.id)) {
+                            track.stop();
+                        }
+                    });
+                    processedStream = null;
+                }
+            }
+
+            /**
+             * 배경 제거 프레임 처리를 수행합니다.
+             * @param {HTMLVideoElement} video - 비디오 요소
+             */
+            function processBackgroundRemoval(video) {
+                if (!backgroundRemovalEnabled || !backgroundCtx) return;
+                
+                // 비디오 프레임을 Canvas에 그리기
+                backgroundCtx.drawImage(video, 0, 0, backgroundCanvas.width, backgroundCanvas.height);
+                
+                // 이미지 데이터 가져오기
+                const imageData = backgroundCtx.getImageData(0, 0, backgroundCanvas.width, backgroundCanvas.height);
+                const data = imageData.data;
+                
+                // 배경 제거 처리 (간단한 색상 기반 크로마키 스타일)
+                // 실제로는 AI 기반 세그멘테이션을 사용해야 하지만, 여기서는 기본 구현
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // 녹색 배경 제거 (크로마키 스타일)
+                    // 또는 밝기 기반 배경 제거
+                    const brightness = (r + g + b) / 3;
+                    const greenRatio = g / (r + g + b + 1);
+                    
+                    // 배경으로 판단되는 픽셀 투명 처리
+                    if (greenRatio > 0.4 && brightness > 100) {
+                        data[i + 3] = 0; // 알파 채널을 0으로 (투명)
+                    }
+                }
+                
+                // 배경 이미지/비디오가 있으면 먼저 배경을 그리고, 그 위에 처리된 프레임을 합성
+                if (backgroundImage || backgroundVideo) {
+                    // 배경 그리기
+                    if (backgroundImage) {
+                        backgroundCtx.drawImage(backgroundImage, 0, 0, backgroundCanvas.width, backgroundCanvas.height);
+                    } else if (backgroundVideo) {
+                        backgroundCtx.drawImage(backgroundVideo, 0, 0, backgroundCanvas.width, backgroundCanvas.height);
+                    }
+                    
+                    // 처리된 이미지 데이터를 배경 위에 합성 (투명 배경 제거된 부분만 표시)
+                    backgroundCtx.putImageData(imageData, 0, 0);
+                } else {
+                    // 배경이 없으면 투명 배경으로 처리된 이미지만 표시
+                    backgroundCtx.putImageData(imageData, 0, 0);
+                }
+                
+                // 다음 프레임 처리
+                backgroundAnimationFrame = requestAnimationFrame(() => processBackgroundRemoval(video));
+            }
+
+            /**
+             * 배경 교체 모달의 이벤트 리스너를 설정합니다.
+             */
+            function setupBackgroundReplaceModal() {
+                const modal = document.getElementById('background-replace-modal');
+                const closeBtn = document.getElementById('background-replace-close');
+                const applyBtn = document.getElementById('background-replace-apply');
+                const imageOption = document.getElementById('background-image-option');
+                const videoOption = document.getElementById('background-video-option');
+                const colorOption = document.getElementById('background-color-option');
+                const imageFile = document.getElementById('background-image-file');
+                const videoFile = document.getElementById('background-video-file');
+                const colorPicker = document.getElementById('background-color-picker');
+                const backgroundTypeRadios = document.querySelectorAll('input[name="background-type"]');
+
+                if (!modal) return;
+
+                // 배경 타입 변경 이벤트
+                backgroundTypeRadios.forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        const type = e.target.value;
+                        if (imageOption) imageOption.style.display = type === 'image' ? 'block' : 'none';
+                        if (videoOption) videoOption.style.display = type === 'video' ? 'block' : 'none';
+                        if (colorOption) colorOption.style.display = type === 'color' ? 'block' : 'none';
+                    });
+                });
+
+                // 이미지 파일 선택
+                if (imageFile) {
+                    imageFile.addEventListener('change', (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                    backgroundImage = img;
+                                };
+                                img.src = event.target.result;
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+                }
+
+                // 비디오 파일 선택
+                if (videoFile) {
+                    videoFile.addEventListener('change', (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            const url = URL.createObjectURL(file);
+                            const video = document.createElement('video');
+                            video.src = url;
+                            video.autoplay = true;
+                            video.loop = true;
+                            video.muted = true;
+                            backgroundVideo = video;
+                        }
+                    });
+                }
+
+                // 적용 버튼
+                if (applyBtn) {
+                    applyBtn.addEventListener('click', () => {
+                        const selectedType = document.querySelector('input[name="background-type"]:checked')?.value;
+                        
+                        if (selectedType === 'none') {
+                            backgroundImage = null;
+                            backgroundVideo = null;
+                        } else if (selectedType === 'color' && colorPicker) {
+                            // 단색 배경은 Canvas에 직접 그리기
+                            const color = colorPicker.value;
+                            if (backgroundCanvas && backgroundCtx) {
+                                backgroundCtx.fillStyle = color;
+                                backgroundCtx.fillRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
+                            }
+                        }
+                        
+                        if (modal) modal.classList.remove('visible');
+                    });
+                }
+
+                // 닫기 버튼
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        if (modal) modal.classList.remove('visible');
+                    });
+                }
+            }
+
+            /**
+             * Transform 모달의 이벤트 리스너를 설정합니다.
+             */
+            function setupTransformModal() {
+                const modal = document.getElementById('transform-modal');
+                const closeBtn = document.getElementById('transform-close');
+                const applyBtn = document.getElementById('transform-apply');
+                const resetBtn = document.getElementById('transform-reset');
+                const scaleSlider = document.getElementById('transform-scale');
+                const scaleValue = document.getElementById('transform-scale-value');
+                const rotationSlider = document.getElementById('transform-rotation');
+                const rotationValue = document.getElementById('transform-rotation-value');
+
+                if (!modal) return;
+
+                // 크기 비율 슬라이더
+                if (scaleSlider && scaleValue) {
+                    scaleSlider.addEventListener('input', (e) => {
+                        scaleValue.textContent = Math.round(e.target.value * 100) + '%';
+                    });
+                }
+
+                // 회전 슬라이더
+                if (rotationSlider && rotationValue) {
+                    rotationSlider.addEventListener('input', (e) => {
+                        rotationValue.textContent = e.target.value + '°';
+                    });
+                }
+
+                // 초기화 버튼
+                if (resetBtn) {
+                    resetBtn.addEventListener('click', () => {
+                        const xInput = document.getElementById('transform-x');
+                        const yInput = document.getElementById('transform-y');
+                        const widthInput = document.getElementById('transform-width');
+                        const heightInput = document.getElementById('transform-height');
+                        
+                        if (xInput) xInput.value = 0;
+                        if (yInput) yInput.value = 0;
+                        if (widthInput) widthInput.value = 640;
+                        if (heightInput) heightInput.value = 480;
+                        if (scaleSlider) scaleSlider.value = 1;
+                        if (scaleValue) scaleValue.textContent = '100%';
+                        if (rotationSlider) rotationSlider.value = 0;
+                        if (rotationValue) rotationValue.textContent = '0°';
+                    });
+                }
+
+                // 적용 버튼
+                if (applyBtn) {
+                    applyBtn.addEventListener('click', () => {
+                        // TODO: 선택된 소스에 변형 적용
+                        // 현재는 UI만 구현, 실제 소스 변형은 추후 구현
+                        if (modal) modal.classList.remove('visible');
+                    });
+                }
+
+                // 닫기 버튼
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        if (modal) modal.classList.remove('visible');
+                    });
+                }
+            }
+
+            // ============================================
+            // AI 학습 관련 변수
+            // ============================================
+            let trainingDataCollection = false;          // 학습 데이터 수집 상태
+            let trainingCollectionInterval = null;       // 데이터 수집 인터벌
+            let labelingMode = 'none';                   // 라벨링 모드 ('bbox', 'segmentation', 'none')
+            let labelingCanvas = null;                   // 라벨링용 Canvas
+            let labelingCtx = null;                      // 라벨링 Canvas 컨텍스트
+            let currentLabelingImage = null;             // 현재 라벨링 중인 이미지
+            let boundingBoxes = [];                      // 바운딩 박스 목록
+            let isDrawingBBox = false;                   // 바운딩 박스 그리기 중
+            let bboxStartX = 0, bboxStartY = 0;         // 바운딩 박스 시작 좌표
+            let collectedImages = [];                    // 수집된 이미지 목록
+
+            /**
+             * AI 학습 모달의 이벤트 리스너를 설정합니다.
+             */
+            function setupAITrainingModal() {
+                const modal = document.getElementById('ai-training-modal');
+                const closeBtn = document.getElementById('ai-training-close');
+                
+                // 탭 전환
+                const dataTab = document.getElementById('training-tab-data');
+                const labelingTab = document.getElementById('training-tab-labeling');
+                const trainingTab = document.getElementById('training-tab-training');
+                const datasetTab = document.getElementById('training-tab-dataset');
+                
+                const dataContent = document.getElementById('training-data-tab');
+                const labelingContent = document.getElementById('training-labeling-tab');
+                const trainingContent = document.getElementById('training-training-tab');
+                const datasetContent = document.getElementById('training-dataset-tab');
+                
+                if (dataTab) {
+                    dataTab.addEventListener('click', () => {
+                        switchTab('data', dataTab, dataContent, [labelingTab, trainingTab, datasetTab], [labelingContent, trainingContent, datasetContent]);
+                    });
+                }
+                
+                if (labelingTab) {
+                    labelingTab.addEventListener('click', () => {
+                        switchTab('labeling', labelingTab, labelingContent, [dataTab, trainingTab, datasetTab], [dataContent, trainingContent, datasetContent]);
+                    });
+                }
+                
+                if (trainingTab) {
+                    trainingTab.addEventListener('click', () => {
+                        switchTab('training', trainingTab, trainingContent, [dataTab, labelingTab, datasetTab], [dataContent, labelingContent, datasetContent]);
+                    });
+                }
+                
+                if (datasetTab) {
+                    datasetTab.addEventListener('click', () => {
+                        switchTab('dataset', datasetTab, datasetContent, [dataTab, labelingTab, trainingTab], [dataContent, labelingContent, trainingContent]);
+                    });
+                }
+                
+                // 데이터 수집 기능
+                setupDataCollection();
+                
+                // 데이터 라벨링 기능
+                setupDataLabeling();
+                
+                // 모델 학습 기능
+                setupModelTraining();
+                
+                // 데이터셋 다운로드 기능
+                setupDatasetDownload();
+                
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        if (modal) modal.classList.remove('visible');
+                    });
+                }
+            }
+
+            /**
+             * 탭 전환 함수
+             */
+            function switchTab(activeTab, activeButton, activeContent, otherButtons, otherContents) {
+                // 모든 탭 비활성화
+                otherButtons.forEach(btn => {
+                    if (btn) btn.classList.remove('recording');
+                });
+                otherContents.forEach(content => {
+                    if (content) content.style.display = 'none';
+                });
+                
+                // 활성 탭 설정
+                if (activeButton) activeButton.classList.add('recording');
+                if (activeContent) activeContent.style.display = 'block';
+            }
+
+            /**
+             * 데이터 수집 기능 설정
+             */
+            function setupDataCollection() {
+                const startBtn = document.getElementById('start-data-collection');
+                const stopBtn = document.getElementById('stop-data-collection');
+                const statusSpan = document.getElementById('data-collection-status');
+                const selectPathBtn = document.getElementById('select-training-data-path');
+                const dataPathInput = document.getElementById('training-data-path');
+                const datasetNameInput = document.getElementById('dataset-name');
+                const captureIntervalInput = document.getElementById('capture-interval');
+                const collectedDataList = document.getElementById('collected-data-list');
+                
+                // 저장 경로 선택
+                if (selectPathBtn && dataPathInput) {
+                    selectPathBtn.addEventListener('click', async () => {
+                        try {
+                            const path = await window.electronAPI.invoke('select-training-data-path');
+                            if (path) {
+                                dataPathInput.value = path;
+                            }
+                        } catch (error) {
+                            console.error('경로 선택 실패:', error);
+                        }
+                    });
+                }
+                
+                // 초기 경로 설정
+                if (dataPathInput && isElectron) {
+                    window.electronAPI.invoke('get-training-data-path').then(path => {
+                        if (path) dataPathInput.value = path;
+                    });
+                }
+                
+                // 수집 시작
+                if (startBtn) {
+                    startBtn.addEventListener('click', async () => {
+                        const datasetName = datasetNameInput?.value || 'default';
+                        const interval = parseFloat(captureIntervalInput?.value || 1) * 1000;
+                        
+                        if (!datasetName) {
+                            alert('데이터셋 이름을 입력하세요.');
+                            return;
+                        }
+                        
+                        trainingDataCollection = true;
+                        if (startBtn) startBtn.disabled = true;
+                        if (stopBtn) stopBtn.disabled = false;
+                        if (statusSpan) {
+                            statusSpan.textContent = '수집 중...';
+                            statusSpan.style.backgroundColor = 'var(--color-success)';
+                        }
+                        
+                        // 주기적으로 프레임 캡처
+                        trainingCollectionInterval = setInterval(() => {
+                            captureTrainingFrame(datasetName);
+                        }, interval);
+                        
+                        // 즉시 한 번 캡처
+                        captureTrainingFrame(datasetName);
+                    });
+                }
+                
+                // 수집 중지
+                if (stopBtn) {
+                    stopBtn.addEventListener('click', () => {
+                        trainingDataCollection = false;
+                        if (trainingCollectionInterval) {
+                            clearInterval(trainingCollectionInterval);
+                            trainingCollectionInterval = null;
+                        }
+                        if (startBtn) startBtn.disabled = false;
+                        if (stopBtn) stopBtn.disabled = true;
+                        if (statusSpan) {
+                            statusSpan.textContent = '대기 중';
+                            statusSpan.style.backgroundColor = 'var(--bg-medium)';
+                        }
+                    });
+                }
+                
+                // 수집된 데이터 목록 업데이트
+                updateCollectedDataList();
+            }
+
+            /**
+             * 학습 프레임 캡처
+             */
+            async function captureTrainingFrame(datasetName) {
+                const videoFeed = document.getElementById('main-video-feed');
+                if (!videoFeed || !videoFeed.videoWidth) return;
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = videoFeed.videoWidth;
+                canvas.height = videoFeed.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(videoFeed, 0, 0);
+                
+                canvas.toBlob(async (blob) => {
+                    try {
+                        const arrayBuffer = await blob.arrayBuffer();
+                        const result = await window.electronAPI.invoke('save-training-image', {
+                            imageBuffer: Array.from(new Uint8Array(arrayBuffer)),
+                            datasetName: datasetName,
+                            timestamp: Date.now()
+                        });
+                        
+                        if (result.success) {
+                            // 파일명 추출
+                            const fileName = result.path.split(/[/\\]/).pop();
+                            collectedImages.push({
+                                name: fileName,
+                                path: result.path,
+                                timestamp: Date.now()
+                            });
+                            updateCollectedDataList();
+                        }
+                    } catch (error) {
+                        console.error('이미지 저장 실패:', error);
+                    }
+                }, 'image/jpeg', 0.9);
+            }
+
+            /**
+             * 수집된 데이터 목록 업데이트
+             */
+            function updateCollectedDataList() {
+                const list = document.getElementById('collected-data-list');
+                if (!list) return;
+                
+                if (collectedImages.length === 0) {
+                    list.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">수집된 데이터가 없습니다</p>';
+                    return;
+                }
+                
+                list.innerHTML = collectedImages.map((img, index) => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid var(--border-color);">
+                        <span>${img.name}</span>
+                        <span style="font-size: 0.85em; color: var(--text-secondary);">${new Date(img.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                `).join('');
+            }
+
+            /**
+             * 데이터 라벨링 기능 설정
+             */
+            function setupDataLabeling() {
+                const imageFileInput = document.getElementById('labeling-image-file');
+                const bboxToolBtn = document.getElementById('labeling-tool-bbox');
+                const segmentationToolBtn = document.getElementById('labeling-tool-segmentation');
+                const clearToolBtn = document.getElementById('labeling-tool-clear');
+                const saveLabelBtn = document.getElementById('save-label');
+                const loadLabelBtn = document.getElementById('load-label');
+                const labelingCanvas = document.getElementById('labeling-canvas');
+                
+                if (!labelingCanvas) return;
+                
+                labelingCtx = labelingCanvas.getContext('2d');
+                
+                // 이미지 파일 선택
+                if (imageFileInput) {
+                    imageFileInput.addEventListener('change', (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                    currentLabelingImage = img;
+                                    labelingCanvas.width = img.width;
+                                    labelingCanvas.height = img.height;
+                                    labelingCtx.drawImage(img, 0, 0);
+                                    drawBoundingBoxes();
+                                };
+                                img.src = event.target.result;
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+                }
+                
+                // 바운딩 박스 도구
+                if (bboxToolBtn) {
+                    bboxToolBtn.addEventListener('click', () => {
+                        labelingMode = 'bbox';
+                        if (bboxToolBtn) bboxToolBtn.classList.add('recording');
+                        if (segmentationToolBtn) segmentationToolBtn.classList.remove('recording');
+                    });
+                }
+                
+                // 세그멘테이션 도구
+                if (segmentationToolBtn) {
+                    segmentationToolBtn.addEventListener('click', () => {
+                        labelingMode = 'segmentation';
+                        if (segmentationToolBtn) segmentationToolBtn.classList.add('recording');
+                        if (bboxToolBtn) bboxToolBtn.classList.remove('recording');
+                    });
+                }
+                
+                // 초기화
+                if (clearToolBtn) {
+                    clearToolBtn.addEventListener('click', () => {
+                        boundingBoxes = [];
+                        if (currentLabelingImage) {
+                            labelingCtx.clearRect(0, 0, labelingCanvas.width, labelingCanvas.height);
+                            labelingCtx.drawImage(currentLabelingImage, 0, 0);
+                        }
+                    });
+                }
+                
+                // 바운딩 박스 그리기 이벤트
+                labelingCanvas.addEventListener('mousedown', (e) => {
+                    if (labelingMode === 'bbox') {
+                        isDrawingBBox = true;
+                        const rect = labelingCanvas.getBoundingClientRect();
+                        bboxStartX = e.clientX - rect.left;
+                        bboxStartY = e.clientY - rect.top;
+                    }
+                });
+                
+                labelingCanvas.addEventListener('mousemove', (e) => {
+                    if (isDrawingBBox && labelingMode === 'bbox') {
+                        const rect = labelingCanvas.getBoundingClientRect();
+                        const currentX = e.clientX - rect.left;
+                        const currentY = e.clientY - rect.top;
+                        
+                        // 임시 박스 그리기
+                        if (currentLabelingImage) {
+                            labelingCtx.clearRect(0, 0, labelingCanvas.width, labelingCanvas.height);
+                            labelingCtx.drawImage(currentLabelingImage, 0, 0);
+                            drawBoundingBoxes();
+                            
+                            const width = currentX - bboxStartX;
+                            const height = currentY - bboxStartY;
+                            labelingCtx.strokeStyle = '#00ff00';
+                            labelingCtx.lineWidth = 2;
+                            labelingCtx.strokeRect(bboxStartX, bboxStartY, width, height);
+                        }
+                    }
+                });
+                
+                labelingCanvas.addEventListener('mouseup', (e) => {
+                    if (isDrawingBBox && labelingMode === 'bbox') {
+                        isDrawingBBox = false;
+                        const rect = labelingCanvas.getBoundingClientRect();
+                        const currentX = e.clientX - rect.left;
+                        const currentY = e.clientY - rect.top;
+                        
+                        const width = currentX - bboxStartX;
+                        const height = currentY - bboxStartY;
+                        
+                        if (Math.abs(width) > 10 && Math.abs(height) > 10) {
+                            const classSelect = document.getElementById('labeling-class');
+                            const className = classSelect?.value || 'person';
+                            
+                            boundingBoxes.push({
+                                x: Math.min(bboxStartX, currentX),
+                                y: Math.min(bboxStartY, currentY),
+                                width: Math.abs(width),
+                                height: Math.abs(height),
+                                class: className,
+                                imageWidth: labelingCanvas.width,
+                                imageHeight: labelingCanvas.height
+                            });
+                            
+                            drawBoundingBoxes();
+                        }
+                    }
+                });
+                
+                // 라벨 저장
+                if (saveLabelBtn) {
+                    saveLabelBtn.addEventListener('click', async () => {
+                        if (!imageFileInput?.files[0] || boundingBoxes.length === 0) {
+                            alert('이미지를 선택하고 바운딩 박스를 그려주세요.');
+                            return;
+                        }
+                        
+                        const datasetName = document.getElementById('dataset-name')?.value || 'default';
+                        const imageName = imageFileInput.files[0].name;
+                        
+                        try {
+                            const result = await window.electronAPI.invoke('save-label', {
+                                imageName: imageName,
+                                labels: boundingBoxes,
+                                datasetName: datasetName,
+                                format: 'yolo'
+                            });
+                            
+                            if (result.success) {
+                                alert('라벨이 저장되었습니다.');
+                                boundingBoxes = [];
+                            } else {
+                                alert('라벨 저장 실패: ' + result.error);
+                            }
+                        } catch (error) {
+                            console.error('라벨 저장 오류:', error);
+                            alert('라벨 저장 중 오류가 발생했습니다.');
+                        }
+                    });
+                }
+                
+                // 라벨 불러오기
+                if (loadLabelBtn) {
+                    loadLabelBtn.addEventListener('click', async () => {
+                        if (!imageFileInput?.files[0]) {
+                            alert('이미지를 먼저 선택하세요.');
+                            return;
+                        }
+                        
+                        const datasetName = document.getElementById('dataset-name')?.value || 'default';
+                        const imageName = imageFileInput.files[0].name;
+                        
+                        try {
+                            const result = await window.electronAPI.invoke('load-label', imageName, datasetName);
+                            
+                            if (result.success && result.labels.length > 0) {
+                                boundingBoxes = result.labels.map(label => ({
+                                    x: (label.centerX - label.width / 2) * label.imageWidth,
+                                    y: (label.centerY - label.height / 2) * label.imageHeight,
+                                    width: label.width * label.imageWidth,
+                                    height: label.height * label.imageHeight,
+                                    class: label.classId === 0 ? 'person' : 'background',
+                                    imageWidth: label.imageWidth,
+                                    imageHeight: label.imageHeight
+                                }));
+                                drawBoundingBoxes();
+                            } else {
+                                alert('저장된 라벨이 없습니다.');
+                            }
+                        } catch (error) {
+                            console.error('라벨 불러오기 오류:', error);
+                        }
+                    });
+                }
+            }
+
+            /**
+             * 바운딩 박스 그리기
+             */
+            function drawBoundingBoxes() {
+                if (!currentLabelingImage || !labelingCtx) return;
+                
+                labelingCtx.clearRect(0, 0, labelingCanvas.width, labelingCanvas.height);
+                labelingCtx.drawImage(currentLabelingImage, 0, 0);
+                
+                boundingBoxes.forEach(bbox => {
+                    labelingCtx.strokeStyle = bbox.class === 'person' ? '#00ff00' : '#ff0000';
+                    labelingCtx.lineWidth = 2;
+                    labelingCtx.strokeRect(bbox.x, bbox.y, bbox.width, bbox.height);
+                    
+                    // 클래스 라벨 표시
+                    labelingCtx.fillStyle = bbox.class === 'person' ? '#00ff00' : '#ff0000';
+                    labelingCtx.font = '14px Arial';
+                    labelingCtx.fillText(bbox.class, bbox.x, bbox.y - 5);
+                });
+            }
+
+            /**
+             * 모델 학습 기능 설정
+             */
+            function setupModelTraining() {
+                const startTrainingBtn = document.getElementById('start-training');
+                const stopTrainingBtn = document.getElementById('stop-training');
+                const selectDatasetPathBtn = document.getElementById('select-training-dataset-path');
+                const datasetPathInput = document.getElementById('training-dataset-path');
+                
+                // 데이터셋 경로 선택
+                if (selectDatasetPathBtn) {
+                    selectDatasetPathBtn.addEventListener('click', async () => {
+                        try {
+                            const path = await window.electronAPI.invoke('select-training-dataset-path');
+                            if (path) {
+                                datasetPathInput.value = path;
+                            }
+                        } catch (error) {
+                            console.error('경로 선택 실패:', error);
+                        }
+                    });
+                }
+                
+                // 학습 시작
+                if (startTrainingBtn) {
+                    startTrainingBtn.addEventListener('click', async () => {
+                        const trainingType = document.getElementById('training-type')?.value || 'yolo';
+                        const datasetPath = datasetPathInput?.value;
+                        const epochs = parseInt(document.getElementById('training-epochs')?.value || 100);
+                        const batchSize = parseInt(document.getElementById('training-batch-size')?.value || 16);
+                        const learningRate = parseFloat(document.getElementById('training-learning-rate')?.value || 0.001);
+                        const imageSize = parseInt(document.getElementById('training-image-size')?.value || 640);
+                        
+                        if (!datasetPath) {
+                            alert('데이터셋 경로를 선택하세요.');
+                            return;
+                        }
+                        
+                        try {
+                            const result = await window.electronAPI.invoke('start-training', {
+                                trainingType,
+                                datasetPath,
+                                epochs,
+                                batchSize,
+                                learningRate,
+                                imageSize
+                            });
+                            
+                            if (result.success) {
+                                if (startTrainingBtn) startTrainingBtn.disabled = true;
+                                if (stopTrainingBtn) stopTrainingBtn.disabled = false;
+                                updateTrainingLog('학습이 시작되었습니다...\n');
+                            } else {
+                                alert('학습 시작 실패: ' + result.error);
+                            }
+                        } catch (error) {
+                            console.error('학습 시작 오류:', error);
+                            alert('학습 시작 중 오류가 발생했습니다.');
+                        }
+                    });
+                }
+                
+                // 학습 중지
+                if (stopTrainingBtn) {
+                    stopTrainingBtn.addEventListener('click', async () => {
+                        try {
+                            const result = await window.electronAPI.invoke('stop-training');
+                            if (result.success) {
+                                if (startTrainingBtn) startTrainingBtn.disabled = false;
+                                if (stopTrainingBtn) stopTrainingBtn.disabled = true;
+                                updateTrainingLog('학습이 중지되었습니다.\n');
+                            }
+                        } catch (error) {
+                            console.error('학습 중지 오류:', error);
+                        }
+                    });
+                }
+                
+                // 학습 출력 수신 (IPC 이벤트 리스너는 별도로 설정 필요)
+            }
+
+            /**
+             * 학습 로그 업데이트
+             */
+            function updateTrainingLog(message) {
+                const logDiv = document.getElementById('training-log');
+                if (logDiv) {
+                    logDiv.innerHTML += '<p>' + message.replace(/\n/g, '<br>') + '</p>';
+                    logDiv.scrollTop = logDiv.scrollHeight;
+                }
+            }
+
+            /**
+             * 데이터셋 다운로드 기능 설정
+             */
+            function setupDatasetDownload() {
+                const datasetSelect = document.getElementById('dataset-select');
+                const customUrlDiv = document.getElementById('custom-dataset-url');
+                const customUrlInput = document.getElementById('custom-dataset-url-input');
+                const selectPathBtn = document.getElementById('select-dataset-download-path');
+                const downloadPathInput = document.getElementById('dataset-download-path');
+                const startDownloadBtn = document.getElementById('start-dataset-download');
+                const stopDownloadBtn = document.getElementById('stop-dataset-download');
+                
+                // 데이터셋 타입 변경
+                if (datasetSelect) {
+                    datasetSelect.addEventListener('change', (e) => {
+                        if (e.target.value === 'custom') {
+                            if (customUrlDiv) customUrlDiv.style.display = 'block';
+                        } else {
+                            if (customUrlDiv) customUrlDiv.style.display = 'none';
+                        }
+                    });
+                }
+                
+                // 다운로드 경로 선택
+                if (selectPathBtn) {
+                    selectPathBtn.addEventListener('click', async () => {
+                        try {
+                            const path = await window.electronAPI.invoke('select-dataset-download-path');
+                            if (path) {
+                                downloadPathInput.value = path;
+                            }
+                        } catch (error) {
+                            console.error('경로 선택 실패:', error);
+                        }
+                    });
+                }
+                
+                // 초기 경로 설정
+                if (downloadPathInput && isElectron) {
+                    window.electronAPI.invoke('select-dataset-download-path').then(path => {
+                        if (path) downloadPathInput.value = path;
+                    });
+                }
+                
+                // 다운로드 시작
+                if (startDownloadBtn) {
+                    startDownloadBtn.addEventListener('click', async () => {
+                        const datasetType = datasetSelect?.value || 'coco';
+                        const downloadPath = downloadPathInput?.value;
+                        const customUrl = customUrlInput?.value;
+                        
+                        if (!downloadPath) {
+                            alert('다운로드 경로를 선택하세요.');
+                            return;
+                        }
+                        
+                        if (datasetType === 'custom' && !customUrl) {
+                            alert('커스텀 데이터셋 URL을 입력하세요.');
+                            return;
+                        }
+                        
+                        try {
+                            const result = await window.electronAPI.invoke('download-dataset', {
+                                datasetType,
+                                downloadPath,
+                                customUrl
+                            });
+                            
+                            if (result.success) {
+                                if (startDownloadBtn) startDownloadBtn.disabled = true;
+                                if (stopDownloadBtn) stopDownloadBtn.disabled = false;
+                                updateDownloadLog('다운로드가 시작되었습니다...\n');
+                            } else {
+                                alert('다운로드 시작 실패: ' + result.error);
+                            }
+                        } catch (error) {
+                            console.error('다운로드 시작 오류:', error);
+                            alert('다운로드 시작 중 오류가 발생했습니다.');
+                        }
+                    });
+                }
+            }
+
+            /**
+             * 다운로드 로그 업데이트
+             */
+            function updateDownloadLog(message) {
+                const logDiv = document.getElementById('download-log');
+                if (logDiv) {
+                    logDiv.innerHTML += '<p>' + message.replace(/\n/g, '<br>') + '</p>';
+                    logDiv.scrollTop = logDiv.scrollHeight;
                 }
             }
 
@@ -844,6 +2289,28 @@
                 saveSettings(); // 설정 변경 시 자동 저장
             });
 
+            // 해상도 변경 이벤트 리스너
+            const resolutionSelect = document.getElementById('video-resolution');
+            if (resolutionSelect) {
+                resolutionSelect.addEventListener('change', () => {
+                    const selectedVideoId = videoSelect.value;
+                    const selectedAudioId = audioSelect.value;
+                    startStream(selectedVideoId, selectedAudioId);
+                    saveSettings();
+                });
+            }
+
+            // 프레임레이트 변경 이벤트 리스너
+            const framerateSelect = document.getElementById('video-framerate');
+            if (framerateSelect) {
+                framerateSelect.addEventListener('change', () => {
+                    const selectedVideoId = videoSelect.value;
+                    const selectedAudioId = audioSelect.value;
+                    startStream(selectedVideoId, selectedAudioId);
+                    saveSettings();
+                });
+            }
+
 
             // ============================================
             // 설정 저장/불러오기 함수
@@ -857,6 +2324,8 @@
                     const settings = {
                         videoSource: videoSelect.value,
                         audioSource: audioSelect.value,
+                        videoResolution: document.getElementById('video-resolution')?.value || 'auto',
+                        videoFramerate: document.getElementById('video-framerate')?.value || 'auto',
                         raspberryPiIp: document.getElementById('raspberry-pi-ip')?.value || '',
                         raspberryPiPort: document.getElementById('raspberry-pi-port')?.value || '8765',
                         fileFormat: document.getElementById('file-format')?.value || 'webm',
@@ -885,6 +2354,14 @@
                     }
                     if (settings.audioSource && audioSelect) {
                         audioSelect.value = settings.audioSource;
+                    }
+                    if (settings.videoResolution) {
+                        const resolutionSelect = document.getElementById('video-resolution');
+                        if (resolutionSelect) resolutionSelect.value = settings.videoResolution;
+                    }
+                    if (settings.videoFramerate) {
+                        const framerateSelect = document.getElementById('video-framerate');
+                        if (framerateSelect) framerateSelect.value = settings.videoFramerate;
                     }
                     if (settings.raspberryPiIp) {
                         const piIpInput = document.getElementById('raspberry-pi-ip');
@@ -1531,22 +3008,56 @@
 
                     piWebSocket.onclose = (event) => {
                         piConnected = false;
-                        updatePiConnectionStatus(false);
                         
-                        if (event.code !== 1000 && piReconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                            attemptReconnect(ip, port);
+                        // 정상 종료가 아닌 경우에만 재연결 시도
+                        if (event.code !== 1000) {
+                            if (piReconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                                attemptReconnect(ip, port);
+                            } else {
+                                updatePiConnectionStatus(false, '연결 실패: 재연결 시도 횟수를 초과했습니다.');
+                                showErrorModal(
+                                    '라즈베리파이 연결이 끊어졌습니다.\n\n재연결을 여러 번 시도했지만 실패했습니다.\n\nIP 주소와 포트를 확인하고 수동으로 다시 연결해주세요.',
+                                    true,
+                                    true,
+                                    () => {
+                                        connectToRaspberryPi(ip, port);
+                                    }
+                                );
+                            }
+                        } else {
+                            updatePiConnectionStatus(false, '연결이 종료되었습니다.');
                         }
                     };
 
                     piWebSocket.onerror = (error) => {
                         console.error('라즈베리파이 연결 오류:', error);
                         piConnected = false;
-                        updatePiConnectionStatus(false);
+                        updatePiConnectionStatus(false, '연결 실패: 네트워크 오류가 발생했습니다.');
+                        
+                        // 에러 모달 표시
+                        showErrorModal(
+                            '라즈베리파이에 연결할 수 없습니다.\n\n가능한 원인:\n- IP 주소나 포트가 올바르지 않습니다\n- 라즈베리파이가 실행 중이지 않습니다\n- 방화벽이 연결을 차단하고 있습니다\n- 네트워크 연결이 끊어졌습니다',
+                            true,
+                            true,
+                            () => {
+                                connectToRaspberryPi(ip, port);
+                            }
+                        );
                     };
 
                 } catch (error) {
                     console.error('WebSocket 생성 실패:', error);
-                    updatePiConnectionStatus(false);
+                    updatePiConnectionStatus(false, '연결 실패: WebSocket을 생성할 수 없습니다.');
+                    
+                    // 에러 모달 표시
+                    showErrorModal(
+                        `라즈베리파이 연결에 실패했습니다.\n\n오류: ${error.message || '알 수 없는 오류'}\n\nIP 주소와 포트를 확인하고 다시 시도해주세요.`,
+                        true,
+                        true,
+                        () => {
+                            connectToRaspberryPi(ip, port);
+                        }
+                    );
                 }
             }
 
@@ -1611,28 +3122,87 @@
                 if (!frameData) return;
 
                 try {
+                    const videoFeed = document.getElementById('main-video-feed');
+                    
                     if (typeof frameData === 'string') {
+                        // Base64 인코딩된 이미지 데이터
                         const img = new Image();
                         img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            canvas.width = img.width;
-                            canvas.height = img.height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0);
+                            // Canvas를 사용하여 이미지를 비디오 스트림으로 변환
+                            if (!trackingCanvas) {
+                                trackingCanvas = document.createElement('canvas');
+                                trackingCtx = trackingCanvas.getContext('2d');
+                            }
                             
-                            canvas.toBlob((blob) => {
-                                const url = URL.createObjectURL(blob);
-                                if (videoFeed) {
-                                    videoFeed.src = url;
+                            trackingCanvas.width = img.width;
+                            trackingCanvas.height = img.height;
+                            trackingCtx.drawImage(img, 0, 0);
+                            
+                            // Canvas를 스트림으로 변환
+                            const stream = trackingCanvas.captureStream(30);
+                            
+                            // 오디오 트랙이 있으면 추가
+                            if (mediaStream) {
+                                const audioTracks = mediaStream.getAudioTracks();
+                                audioTracks.forEach(track => {
+                                    stream.addTrack(track);
+                                });
+                            }
+                            
+                            piVideoStream = stream;
+                            if (videoFeed) {
+                                videoFeed.srcObject = stream;
+                                
+                                // 자동 추적이 활성화되어 있으면 객체 추적 시작
+                                if (autoTrackingEnabled) {
+                                    processObjectTracking();
                                 }
-                            }, 'image/jpeg');
+                            }
                         };
                         img.src = `data:image/jpeg;base64,${frameData}`;
                     } 
                     else if (frameData instanceof Blob) {
+                        // Blob 데이터를 스트림으로 변환
                         const url = URL.createObjectURL(frameData);
                         if (videoFeed) {
-                            videoFeed.src = url;
+                            // Blob을 비디오 요소로 로드
+                            const tempVideo = document.createElement('video');
+                            tempVideo.src = url;
+                            tempVideo.autoplay = true;
+                            tempVideo.muted = true;
+                            tempVideo.playsInline = true;
+                            
+                            tempVideo.addEventListener('loadedmetadata', () => {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = tempVideo.videoWidth;
+                                canvas.height = tempVideo.videoHeight;
+                                const ctx = canvas.getContext('2d');
+                                
+                                const drawFrame = () => {
+                                    if (tempVideo.readyState >= 2) {
+                                        ctx.drawImage(tempVideo, 0, 0);
+                                        const stream = canvas.captureStream(30);
+                                        
+                                        if (mediaStream) {
+                                            const audioTracks = mediaStream.getAudioTracks();
+                                            audioTracks.forEach(track => {
+                                                stream.addTrack(track);
+                                            });
+                                        }
+                                        
+                                        piVideoStream = stream;
+                                        videoFeed.srcObject = stream;
+                                        
+                                        // 자동 추적이 활성화되어 있으면 객체 추적 시작
+                                        if (autoTrackingEnabled) {
+                                            processObjectTracking();
+                                        }
+                                    } else {
+                                        requestAnimationFrame(drawFrame);
+                                    }
+                                };
+                                drawFrame();
+                            });
                         }
                     }
                 } catch (error) {
@@ -1687,12 +3257,27 @@
 
             /**
              * 라즈베리파이로 모터 제어 명령을 전송합니다.
+             * @param {number} pan - 팬 각도 (-90 ~ 90)
+             * @param {number} tilt - 틸트 각도 (-90 ~ 90)
              */
             function sendMotorControl(pan, tilt) {
                 if (!piConnected || !piWebSocket || piWebSocket.readyState !== WebSocket.OPEN) {
                     console.warn('라즈베리파이가 연결되지 않았습니다.');
                     return;
                 }
+
+                // 각도 제한
+                pan = Math.max(-90, Math.min(90, pan));
+                tilt = Math.max(-90, Math.min(90, tilt));
+
+                // 마지막 명령과 차이가 작으면 전송하지 않음 (과도한 명령 방지)
+                const panDiff = Math.abs(pan - lastMotorCommand.pan);
+                const tiltDiff = Math.abs(tilt - lastMotorCommand.tilt);
+                if (panDiff < 1 && tiltDiff < 1) {
+                    return;
+                }
+
+                lastMotorCommand = { pan, tilt };
 
                 const command = {
                     type: 'motor_control',
@@ -1702,6 +3287,153 @@
                 };
 
                 piWebSocket.send(JSON.stringify(command));
+            }
+
+            /**
+             * 자동 추적 모드를 토글합니다.
+             */
+            function toggleAutoTracking() {
+                autoTrackingEnabled = !autoTrackingEnabled;
+                const btn = document.getElementById('toggle-auto-tracking');
+                
+                if (btn) {
+                    btn.textContent = `자동 추적: ${autoTrackingEnabled ? 'ON' : 'OFF'}`;
+                    if (autoTrackingEnabled) {
+                        btn.classList.add('recording');
+                        startAutoTracking();
+                    } else {
+                        btn.classList.remove('recording');
+                        stopAutoTracking();
+                    }
+                }
+            }
+
+            /**
+             * 자동 추적을 시작합니다.
+             */
+            function startAutoTracking() {
+                if (!mediaStream && !piVideoStream) {
+                    console.warn('비디오 스트림이 없습니다.');
+                    return;
+                }
+
+                // 추적용 Canvas 생성
+                if (!trackingCanvas) {
+                    trackingCanvas = document.createElement('canvas');
+                    trackingCtx = trackingCanvas.getContext('2d', { willReadFrequently: true });
+                }
+
+                // YOLO 모델 로드 (시뮬레이션)
+                // 실제로는 TensorFlow.js나 다른 라이브러리를 사용해야 함
+                loadYOLOModel();
+
+                // 추적 시작
+                processObjectTracking();
+            }
+
+            /**
+             * 자동 추적을 중지합니다.
+             */
+            function stopAutoTracking() {
+                if (trackingAnimationFrame) {
+                    cancelAnimationFrame(trackingAnimationFrame);
+                    trackingAnimationFrame = null;
+                }
+                detectedObjects = [];
+            }
+
+            /**
+             * YOLO 모델을 로드합니다 (시뮬레이션).
+             * 실제로는 TensorFlow.js를 사용하여 모델을 로드해야 합니다.
+             */
+            async function loadYOLOModel() {
+                // TODO: 실제 YOLO 모델 로드
+                // 예: const model = await tf.loadLayersModel('path/to/yolo/model.json');
+                console.log('YOLO 모델 로드 (시뮬레이션)');
+                yoloModel = { loaded: true }; // 시뮬레이션
+            }
+
+            /**
+             * 객체 추적을 처리합니다.
+             */
+            function processObjectTracking() {
+                if (!autoTrackingEnabled) return;
+
+                const videoElement = document.getElementById('main-video-feed');
+                if (!videoElement || !videoElement.videoWidth) {
+                    trackingAnimationFrame = requestAnimationFrame(processObjectTracking);
+                    return;
+                }
+
+                // Canvas 크기 설정
+                if (!trackingCanvas || !trackingCtx) {
+                    trackingAnimationFrame = requestAnimationFrame(processObjectTracking);
+                    return;
+                }
+
+                trackingCanvas.width = videoElement.videoWidth || 640;
+                trackingCanvas.height = videoElement.videoHeight || 480;
+
+                // 비디오 프레임을 Canvas에 그리기
+                trackingCtx.drawImage(videoElement, 0, 0, trackingCanvas.width, trackingCanvas.height);
+
+                // YOLO 객체 감지 (시뮬레이션)
+                detectObjects(trackingCanvas).then(objects => {
+                    detectedObjects = objects;
+
+                    // 사람 객체가 감지되면 모터 제어
+                    const personObjects = objects.filter(obj => obj.class === 'person');
+                    if (personObjects.length > 0 && piConnected) {
+                        // 가장 큰 사람 객체를 추적
+                        const mainPerson = personObjects.reduce((prev, curr) => 
+                            (curr.width * curr.height) > (prev.width * prev.height) ? curr : prev
+                        );
+
+                        // 객체 중심점 계산
+                        const centerX = mainPerson.x + mainPerson.width / 2;
+                        const centerY = mainPerson.y + mainPerson.height / 2;
+                        const canvasCenterX = trackingCanvas.width / 2;
+                        const canvasCenterY = trackingCanvas.height / 2;
+
+                        // 중심점 차이 계산
+                        const diffX = centerX - canvasCenterX;
+                        const diffY = centerY - canvasCenterY;
+
+                        // 모터 각도 계산 (정규화)
+                        const panAngle = (diffX / canvasCenterX) * 45; // 최대 45도
+                        const tiltAngle = -(diffY / canvasCenterY) * 45; // 틸트는 반대 방향
+
+                        // 모터 제어 명령 전송
+                        sendMotorControl(panAngle, tiltAngle);
+                    }
+
+                    // 다음 프레임 처리
+                    trackingAnimationFrame = requestAnimationFrame(processObjectTracking);
+                });
+            }
+
+            /**
+             * 객체를 감지합니다 (YOLO 시뮬레이션).
+             * 실제로는 YOLO 모델을 사용하여 객체를 감지해야 합니다.
+             * @param {HTMLCanvasElement} canvas - 분석할 Canvas
+             * @returns {Promise<Array>} 감지된 객체 목록
+             */
+            async function detectObjects(canvas) {
+                // TODO: 실제 YOLO 모델을 사용한 객체 감지
+                // 예: const predictions = await yoloModel.detect(canvas);
+                
+                // 시뮬레이션: 랜덤 객체 감지 (테스트용)
+                if (Math.random() > 0.7) {
+                    return [{
+                        class: 'person',
+                        confidence: 0.85,
+                        x: Math.random() * (canvas.width - 100),
+                        y: Math.random() * (canvas.height - 100),
+                        width: 80 + Math.random() * 40,
+                        height: 120 + Math.random() * 40
+                    }];
+                }
+                return [];
             }
 
             /**
@@ -1807,6 +3539,16 @@
                     console.error('업데이트 확인 오류:', error);
                     updateChecking.style.display = 'none';
                     updateError.style.display = 'block';
+                    
+                    // 에러 메시지 표시
+                    const errorMessage = document.getElementById('update-error-message');
+                    if (errorMessage) {
+                        if (error.message && error.message.includes('network') || error.message && error.message.includes('timeout')) {
+                            errorMessage.textContent = '업데이트 서버에 연결할 수 없습니다. 인터넷 연결을 확인해주세요.';
+                        } else {
+                            errorMessage.textContent = `업데이트 확인 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`;
+                        }
+                    }
                 }
             }
 
@@ -1916,6 +3658,104 @@
                     
                     if (toggleComparisonBtn) {
                         toggleComparisonBtn.addEventListener('click', toggleComparison);
+                    }
+                    
+                    // 자동 추적 버튼 이벤트
+                    const toggleAutoTrackingBtn = document.getElementById('toggle-auto-tracking');
+                    if (toggleAutoTrackingBtn) {
+                        toggleAutoTrackingBtn.addEventListener('click', toggleAutoTracking);
+                    }
+                    
+                    // 배경 교체 버튼 이벤트
+                    const toggleBackgroundReplaceBtn = document.getElementById('toggle-background-replace');
+                    if (toggleBackgroundReplaceBtn) {
+                        toggleBackgroundReplaceBtn.addEventListener('click', () => {
+                            const modal = document.getElementById('background-replace-modal');
+                            if (modal) modal.classList.add('visible');
+                        });
+                    }
+                    
+                    // Transform 메뉴 이벤트
+                    const menuTransform = document.getElementById('menu-transform');
+                    if (menuTransform) {
+                        menuTransform.addEventListener('click', () => {
+                            const modal = document.getElementById('transform-modal');
+                            if (modal) modal.classList.add('visible');
+                        });
+                    }
+                    
+                    // 배경 교체 모달 설정
+                    setupBackgroundReplaceModal();
+                    
+                    // Transform 모달 설정
+                    setupTransformModal();
+                    
+                    // AI 학습 모달 설정
+                    setupAITrainingModal();
+                    
+                    // AI 학습 메뉴 이벤트
+                    const menuAITraining = document.getElementById('menu-ai-training');
+                    if (menuAITraining) {
+                        menuAITraining.addEventListener('click', () => {
+                            const modal = document.getElementById('ai-training-modal');
+                            if (modal) modal.classList.add('visible');
+                        });
+                    }
+                    
+                    // IPC 이벤트 리스너 설정 (학습 진행 상황 수신)
+                    if (isElectron && typeof require !== 'undefined') {
+                        // 학습 출력 수신
+                        const { ipcRenderer } = require('electron');
+                        ipcRenderer.on('training-output', (event, data) => {
+                            updateTrainingLog(data.output);
+                            // 진행률 파싱
+                            parseTrainingProgress(data.output);
+                        });
+                        
+                        ipcRenderer.on('training-error', (event, data) => {
+                            updateTrainingLog('오류: ' + data.error);
+                        });
+                        
+                        ipcRenderer.on('training-complete', (event, data) => {
+                            updateTrainingLog('학습이 완료되었습니다.\n');
+                            const startBtn = document.getElementById('start-training');
+                            const stopBtn = document.getElementById('stop-training');
+                            if (startBtn) startBtn.disabled = false;
+                            if (stopBtn) stopBtn.disabled = true;
+                        });
+                        
+                        // 데이터셋 다운로드 진행 상황 수신
+                        ipcRenderer.on('dataset-download-progress', (event, data) => {
+                            const progressBar = document.getElementById('download-progress-bar');
+                            const progressPercent = document.getElementById('download-progress-percent');
+                            const downloadSpeed = document.getElementById('download-speed');
+                            
+                            if (progressBar) {
+                                progressBar.style.width = data.progress + '%';
+                            }
+                            if (progressPercent) {
+                                progressPercent.textContent = Math.round(data.progress) + '%';
+                            }
+                            if (downloadSpeed) {
+                                downloadSpeed.textContent = data.speed.toFixed(2) + ' MB/s';
+                            }
+                        });
+                        
+                        ipcRenderer.on('dataset-download-complete', (event) => {
+                            updateDownloadLog('다운로드가 완료되었습니다.\n');
+                            const startBtn = document.getElementById('start-dataset-download');
+                            const stopBtn = document.getElementById('stop-dataset-download');
+                            if (startBtn) startBtn.disabled = false;
+                            if (stopBtn) stopBtn.disabled = true;
+                        });
+                        
+                        ipcRenderer.on('dataset-download-error', (event, data) => {
+                            updateDownloadLog('오류: ' + data.error + '\n');
+                            const startBtn = document.getElementById('start-dataset-download');
+                            const stopBtn = document.getElementById('stop-dataset-download');
+                            if (startBtn) startBtn.disabled = false;
+                            if (stopBtn) stopBtn.disabled = true;
+                        });
                     }
                     
                     // 카메라/마이크 장치 목록 가져오기
